@@ -22,7 +22,7 @@ npx wrangler r2 bucket create karens-load-encrypted-files
 
 Copy the returned D1 database ID into `wrangler.jsonc` as `database_id`; keep its binding name `DB`. Keep the R2 binding name `FILES` and set its `bucket_name` to the private bucket you created. Do not enable public bucket access.
 
-Set `ALLOWED_ORIGIN` in `wrangler.jsonc` to the frontend's **exact origin**. For GitHub Pages this is `https://YOUR-USERNAME.github.io`, with no repository path or trailing slash. For local development it is `http://127.0.0.1:47831`. One origin is allowed; wildcards are rejected. Both devices should use the same Pages address.
+Set `ALLOWED_ORIGIN` in `wrangler.jsonc` to the frontend's **exact origin**. This project now uses `https://karenshugeload.com`; keep that value when activating the service. The GitHub Pages address redirects there. For another deployment without a custom domain, the origin could be `https://YOUR-USERNAME.github.io`, with no repository path or trailing slash. For local development it is `http://127.0.0.1:47831`. One origin is allowed; wildcards are rejected. Both devices should use the canonical domain.
 
 Create or upgrade the database tables:
 
@@ -34,7 +34,7 @@ The schema is safe to apply again and does not reset existing records. Source: [
 
 ## 2. Configure Google sign-in
 
-Follow [Google Identity Services setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid) to create a **Web application** OAuth client. Add the Pages origin to its authorized JavaScript origins. Configure the Google consent screen and any test-user settings needed by your Google project. A Google OAuth client secret is not used by this browser ID-token flow.
+Follow [Google Identity Services setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid) to create a **Web application** OAuth client. Add `https://karenshugeload.com` to its authorized JavaScript origins. Configure the Google consent screen and any test-user settings needed by your Google project. A Google OAuth client secret is not used by this browser ID-token flow.
 
 Save the public client ID and the exact allowed user's email in Worker configuration through Wrangler prompts:
 

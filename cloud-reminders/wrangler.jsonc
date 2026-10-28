@@ -7,7 +7,7 @@
   "observability": { "enabled": false },
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
-    "ALLOWED_ORIGIN": "https://praujekt.github.io",
+    "ALLOWED_ORIGIN": "https://karenshugeload.com",
   },
   "d1_databases": [
     {

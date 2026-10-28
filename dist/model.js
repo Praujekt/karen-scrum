@@ -95,6 +95,62 @@
     return value.trim();
   }
 
+  function activityEndWeek(activity) {
+    return activity.endWeek ?? activity.week;
+  }
+
+  function activitySpansWeeks(activity) {
+    return activityEndWeek(activity) > activity.week;
+  }
+
+  function isAwaitingSubmission(activity) {
+    return !!(
+      activity.requiresSubmission &&
+      activity.written &&
+      !activity.done
+    );
+  }
+
+  function validateActivityOptions(activity) {
+    if (
+      !Number.isInteger(activity.week) ||
+      activity.week < 1 ||
+      activity.week > 5
+    )
+      throw new Error("Choose a week from 1 to 5 for every activity.");
+    if (
+      activity.endWeek !== undefined &&
+      (!Number.isInteger(activity.endWeek) ||
+        activity.endWeek < activity.week ||
+        activity.endWeek > 5)
+    )
+      throw new Error("Choose an end week from the start week through Week 5.");
+    for (const flag of ["optional", "requiresSubmission"])
+      if (activity[flag] !== undefined && typeof activity[flag] !== "boolean")
+        throw new Error("Choose a valid " + flag + " flag for every activity.");
+  }
+
+  /** Return a new activity while keeping Written and final completion consistent. */
+  function setActivityChecks(activity, changes) {
+    for (const flag of ["written", "done"])
+      if (changes[flag] !== undefined && typeof changes[flag] !== "boolean")
+        throw new Error("Choose a valid activity completion state.");
+    const next = { ...activity };
+    if (activity.requiresSubmission) {
+      // A completed older snapshot may omit written; completion implies it.
+      next.written = !!(activity.written || activity.done);
+      if (changes.written !== undefined) {
+        next.written = changes.written;
+        if (!next.written) next.done = false;
+      }
+    }
+    if (changes.done !== undefined) {
+      next.done = changes.done;
+      if (next.done && activity.requiresSubmission) next.written = true;
+    }
+    return next;
+  }
+
   function cloneTemplateActivities(activities, freshIds) {
     if (!Array.isArray(activities) || activities.length > 1000)
       throw new Error("A template may contain up to 1000 activities.");
@@ -109,21 +165,7 @@
         throw new Error(
           "Every template activity needs a title of up to 500 characters.",
         );
-      if (
-        !Number.isInteger(activity.week) ||
-        activity.week < 1 ||
-        activity.week > 5
-      )
-        throw new Error(
-          "Choose a week from 1 to 5 for every template activity.",
-        );
-      if (
-        activity.optional !== undefined &&
-        typeof activity.optional !== "boolean"
-      )
-        throw new Error(
-          "Choose a valid optional flag for each template activity.",
-        );
+      validateActivityOptions(activity);
       const id = freshIds ? uid() : activity.id;
       if (
         typeof id !== "string" ||
@@ -138,6 +180,12 @@
         title: activity.title.trim(),
         week: activity.week,
         optional: !!activity.optional,
+        ...(activity.endWeek === undefined
+          ? {}
+          : { endWeek: activity.endWeek }),
+        ...(activity.requiresSubmission === undefined
+          ? {}
+          : { requiresSubmission: activity.requiresSubmission }),
       };
     });
   }
@@ -217,6 +265,13 @@
     return addDays(dueDate, -(5 - week) * 7);
   }
 
+  function activityStartDate(record, activity) {
+    return addDays(
+      taskDue(record.startDate, record.dueDate, activity.week),
+      -6,
+    );
+  }
+
   function createCase(options) {
     const input = options || {};
     const name = String(input.name || "").trim();
@@ -239,23 +294,12 @@
       startDate,
       dueDate,
       status: "open",
-      tasks: tasks.map((task) => {
-        if (
-          !task ||
-          typeof task.title !== "string" ||
-          !task.title.trim() ||
-          task.title.length > 500
-        )
-          throw new Error("Every activity needs a title.");
-        return {
-          id: uid(),
-          title: task.title.trim(),
-          week: task.week,
-          optional: !!task.optional,
-          done: false,
-          dueDate: taskDue(startDate, dueDate, task.week),
-        };
-      }),
+      tasks: cloneTemplateActivities(tasks, true).map((task) => ({
+        ...task,
+        written: false,
+        done: false,
+        dueDate: taskDue(startDate, dueDate, activityEndWeek(task)),
+      })),
       notes,
       attachments: [],
       createdAt: now,
@@ -371,6 +415,49 @@
         record.tasks.forEach((task, index) => {
           task.done = index < checked;
         });
+        if (name === "Alex Morgan") {
+          const report = record.tasks.find(
+            (task) => task.title === "Finalize report",
+          );
+          report.requiresSubmission = true;
+          report.written = true;
+          record.notes[0].text =
+            "Fictional example: the report is written and awaiting submission. Check the separate Written and Submitted boxes when each step is finished.";
+        }
+        if (name === "Jamie Rivera") {
+          const report = record.tasks.find(
+            (task) => task.title === "Finalize report",
+          );
+          report.requiresSubmission = true;
+          record.notes[0].text =
+            "Fictional example: the report has not yet been written. Its separate Written and Submitted boxes show the two steps still to finish.";
+        }
+        if (name === "Avery Brooks") {
+          const ratings = record.tasks.find(
+            (task) => task.title === "Parent rating scales",
+          );
+          ratings.endWeek = 4;
+          ratings.dueDate = taskDue(
+            record.startDate,
+            record.dueDate,
+            ratings.endWeek,
+          );
+          const testing = record.tasks.find(
+            (task) => task.title === "Cognitive and processing testing",
+          );
+          testing.week = 1;
+          testing.endWeek = 5;
+          testing.dueDate = record.dueDate;
+          record.notes[0].text =
+            "Fictional example: parent rating scales span Weeks 2 through 4, and cognitive and processing testing spans Weeks 1 through 5. Adjust these case activities without changing the source template.";
+        }
+        if (name === "Jordan Lee") {
+          const report = record.tasks.find(
+            (task) => task.title === "Finalize report",
+          );
+          report.requiresSubmission = true;
+          report.written = true;
+        }
         record.status = status;
         record.demo = true;
         return record;
@@ -391,6 +478,11 @@
     newTemplate,
     copyTemplate,
     taskDue,
+    activityEndWeek,
+    activitySpansWeeks,
+    activityStartDate,
+    isAwaitingSubmission,
+    setActivityChecks,
     createCase,
     progress,
     effectiveStatus,

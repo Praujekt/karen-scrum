@@ -117,6 +117,7 @@ test(
       );
       assert.equal(await folder(name).getAttribute("aria-current"), "page");
       assert.equal(await sidebar.locator('[aria-current="page"]').count(), 1);
+      await page.getByText("Cases Due Soon", { exact: true }).waitFor();
     }
 
     assert.match(
@@ -124,30 +125,25 @@ test(
       /Karen's\s+Load/,
     );
     await page
-      .getByRole("heading", { name: "Your Open Cases", exact: true })
+      .getByRole("heading", { name: "At a Glance", exact: true })
       .waitFor();
-    await page.getByText("Cases Due Soon", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByLabel("View Through", { exact: true }).inputValue(),
+      await page.evaluate(() => WWModel.addDays(WWModel.today(), 7)),
+      "Overview starts with the next seven days in Pacific Time.",
+    );
     await sidebar
       .getByRole("button", { name: "Coming Up", exact: true })
       .waitFor();
     await sidebar
       .getByRole("button", { name: "Activity Templates", exact: true })
       .waitFor();
-    assert.equal(await page.locator(".case-card").count(), 4);
-    const initialIds = await page
-      .locator(".case-card")
-      .evaluateAll((cards) => cards.map((card) => card.dataset.id).sort());
-    const activeIds = await page.evaluate(async () =>
-      (await WWStore.getCases())
-        .filter((record) => record.status !== "completed")
-        .map((record) => record.id)
-        .sort(),
+    assert.equal(
+      await page.locator(".case-card").count(),
+      0,
+      "Overview presents actionable deadlines rather than the Cases list.",
     );
-    assert.deepEqual(
-      initialIds,
-      activeIds,
-      "Overview contains only open and in-progress cases.",
-    );
+    assert.equal(await page.getByLabel(/^Filter Cases$/i).count(), 0);
     if (process.env.KARENS_LOAD_SCREENSHOTS === "1") {
       await mkdir(new URL("../.qa-artifacts/", import.meta.url), {
         recursive: true,
@@ -223,25 +219,22 @@ test(
       .getByRole("button", { name: "Overview", exact: true })
       .click();
     await page
-      .getByRole("heading", { name: "Your Open Cases", exact: true })
+      .getByRole("heading", { name: "At a Glance", exact: true })
       .waitFor();
-    assert.equal(await page.locator(".case-card").count(), 4);
+    assert.equal(await page.locator(".case-card").count(), 0);
     await folder("completed").click();
     await assertFolder("completed");
     await page.goBack();
     await page.waitForURL(base + "#overview");
     await page
-      .getByRole("heading", { name: "Your Open Cases", exact: true })
+      .getByRole("heading", { name: "At a Glance", exact: true })
       .waitFor();
     assert.equal(
       await page.locator(".case-card").count(),
-      4,
-      "Returning to Overview keeps completed cases out of its list.",
+      0,
+      "Returning to Overview restores the deadline view.",
     );
-    assert.equal(
-      await page.getByLabel(/^Filter Cases$/i).inputValue(),
-      "active",
-    );
+    assert.equal(await page.getByLabel(/^Filter Cases$/i).count(), 0);
 
     for (const width of [1024, 390]) {
       await page.setViewportSize({ width, height: 844 });

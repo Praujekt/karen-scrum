@@ -103,7 +103,22 @@
         typeof task.optional !== "boolean"
       )
         fail("Invalid template activity week or optional flag in backup.");
+      validateActivityOptions(task);
     }
+  }
+  function validateActivityOptions(task) {
+    if (
+      "endWeek" in task &&
+      (!Number.isInteger(task.endWeek) ||
+        task.endWeek < task.week ||
+        task.endWeek > 5)
+    )
+      fail("Invalid activity end week in backup.");
+    if (
+      "requiresSubmission" in task &&
+      typeof task.requiresSubmission !== "boolean"
+    )
+      fail("Invalid activity submission flag in backup.");
   }
   function validateSettings(settings) {
     if (!plain(settings)) fail("Invalid settings in backup.");
@@ -172,6 +187,11 @@
         typeof task.done !== "boolean"
       )
         fail("Invalid activity in backup.");
+      validateActivityOptions(task);
+      if ("written" in task && typeof task.written !== "boolean")
+        fail("Invalid activity written flag in backup.");
+      if (task.requiresSubmission && task.done && task.written === false)
+        fail("A submitted activity must also be written.");
     }
     array(record.notes, 10000, "notes");
     unique(record.notes, "note");

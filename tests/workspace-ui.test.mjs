@@ -209,6 +209,11 @@ test(
         .click();
       await dialog.waitFor({ state: "hidden" });
       await page.locator(".workspace-sync-banner").waitFor();
+      await page
+        .getByRole("button", { name: /^All Cases/ })
+        .first()
+        .click();
+      await page.locator(".case-card").first().waitFor();
     }
     const first = await device(),
       p1 = first.page,
@@ -400,6 +405,10 @@ test(
       .getByRole("button", { name: "Unlock Workspace", exact: true })
       .click();
     await d1.waitFor({ state: "hidden" });
+    await p1
+      .getByRole("button", { name: /^All Cases/ })
+      .first()
+      .click();
     await p1
       .locator(".case-card")
       .filter({ hasText: "Renamed Shared Patient" })

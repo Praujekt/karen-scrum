@@ -165,9 +165,11 @@ test(
 
     for (const name of [
       "styles.css",
+      "overview.css",
       "model.js",
       "data.js",
       "reminder-client.js",
+      "overview.js",
       "app.js",
     ]) {
       assert.ok(

@@ -1,8 +1,12 @@
 # Connect karenshugeload.com
 
-The application is hosted by GitHub Pages at `https://praujekt.github.io/karen-scrum/`. The intended new address is `https://karenshugeload.com/`, with `www.karenshugeload.com` redirecting to it.
+The application is hosted by GitHub Pages at `https://karenshugeload.com/`. Both `https://praujekt.github.io/karen-scrum/` and `https://www.karenshugeload.com/` redirect to that canonical address.
 
-DNS inspection on October 27, 2026 found Squarespace nameservers (`nsc1.squarespacedns.com` through `nsc4.squarespacedns.com`). The apex currently has Squarespace's four parking A records, and `www` points to `ext-sq.squarespace.com`. No apex AAAA or MX records were returned; an existing TXT record is `v=spf1 -all`. The available connections do not include Squarespace DNS access, so changing these records requires the domain owner's Squarespace account.
+## Current Status
+
+Configured October 27, 2026: Squarespace's authoritative DNS returns the four GitHub Pages A records and the `www` CNAME listed below. GitHub Pages is bound to `karenshugeload.com`, its certificate is approved for the apex and `www`, and HTTPS is enforced. Some recursive resolvers may retain earlier parking records until their cached TTL expires. The remaining sections are a reference for future DNS changes and moving existing browser data.
+
+Initial DNS inspection found Squarespace nameservers (`nsc1.squarespacedns.com` through `nsc4.squarespacedns.com`) and its parking records. Those website records have now been replaced. Existing email security and Domain Connect records are retained. The available connections do not include Squarespace DNS access, so future DNS edits still require the domain owner's Squarespace account.
 
 ## Before switching addresses
 
@@ -16,24 +20,24 @@ GitHub also recommends ownership verification. In the **Praujekt account setting
 
 Open [Squarespace Domains](https://account.squarespace.com/domains), select `karenshugeload.com`, then open **DNS → DNS Settings**. Replace the default website/parking records with these records. The host `@` means the bare domain. Leave the domain's nameservers and unrelated MX/TXT records alone. [Squarespace DNS editing guide](https://support.squarespace.com/hc/en-us/articles/360002101888-Adding-DNS-records-to-your-domain).
 
-| Host | Type | Value |
-| --- | --- | --- |
-| `@` | A | `185.199.108.153` |
-| `@` | A | `185.199.109.153` |
-| `@` | A | `185.199.110.153` |
-| `@` | A | `185.199.111.153` |
+| Host  | Type  | Value                |
+| ----- | ----- | -------------------- |
+| `@`   | A     | `185.199.108.153`    |
+| `@`   | A     | `185.199.109.153`    |
+| `@`   | A     | `185.199.110.153`    |
+| `@`   | A     | `185.199.111.153`    |
 | `www` | CNAME | `praujekt.github.io` |
 
 Remove the four old apex A records (`198.185.159.144`, `198.185.159.145`, `198.49.23.144`, and `198.49.23.145`) and replace the existing `www` CNAME. Do not add a slash or repository path to the CNAME target. No wildcard record is needed.
 
 IPv6 is optional. No apex AAAA records were found. If enabling IPv6, use all four GitHub values below; remove any conflicting apex AAAA records:
 
-| Host | Type | Value |
-| --- | --- | --- |
-| `@` | AAAA | `2606:50c0:8000::153` |
-| `@` | AAAA | `2606:50c0:8001::153` |
-| `@` | AAAA | `2606:50c0:8002::153` |
-| `@` | AAAA | `2606:50c0:8003::153` |
+| Host | Type | Value                 |
+| ---- | ---- | --------------------- |
+| `@`  | AAAA | `2606:50c0:8000::153` |
+| `@`  | AAAA | `2606:50c0:8001::153` |
+| `@`  | AAAA | `2606:50c0:8002::153` |
+| `@`  | AAAA | `2606:50c0:8003::153` |
 
 ## GitHub Pages cutover and HTTPS
 

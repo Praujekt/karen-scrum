@@ -2,6 +2,8 @@
 
 The app's `dist/` folder is a complete static website. You can host those files on GitHub Pages or another HTTPS static host. Visitors need a browser; they do not need Node.js or a server running on their laptops for case tracking.
 
+The current canonical address is **https://karenshugeload.com/**. The GitHub Pages URL and `www.karenshugeload.com` redirect to it. The domain and HTTPS certificate are configured; see [Domain Setup](DOMAIN-SETUP.md) for DNS and data-migration details.
+
 Hosting serves the app's HTML, CSS, JavaScript, and icon. Case records stay in IndexedDB unless you explicitly connect encrypted workspace sync. Static hosting alone does not sync records between devices or upload them to GitHub. Optional workspace sync sends encrypted records and uploaded evidence to the separately configured worker so a phone and laptop can use the same cases; see [WORKSPACE-SYNC.md](WORKSPACE-SYNC.md).
 
 ## GitHub Pages, when ready

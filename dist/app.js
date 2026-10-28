@@ -17,7 +17,8 @@
     reminderError = "",
     route = "overview",
     selectedId = null,
-    selectedTemplateId = null;
+    selectedTemplateId = null,
+    overviewSelectedDate = null;
   let filter = "active",
     query = "",
     detailTab = "activities",
@@ -269,7 +270,10 @@
       ? '<div class="demo-banner"><span>' +
           icon("info") +
           " <strong>Example Workspace</strong> · All patient names and records are fictional.</span>" +
+          '<div class="header-actions">' +
+          button("refresh-demo", "Refresh Examples", "ghost small") +
           button("clear-demo", "Remove Examples", "ghost small") +
+          "</div>" +
           "</div>"
       : "";
   }
@@ -400,15 +404,27 @@
       '</span><span class="profile-avatar" aria-label="Personal Workspace">K</span></div></div>' +
       workspaceBanner() +
       demoBanner() +
-      (route === "overview" || route === "cases"
-        ? dashboard()
-        : route === "case"
-          ? detail()
-          : route === "upcoming"
-            ? upcoming()
-            : route === "templates"
-              ? templates()
-              : settingsPage()) +
+      (route === "overview"
+        ? window.KLOverview.render({
+            cases,
+            throughDate: overviewSelectedDate || M.addDays(M.today(), 7),
+            today: M.today(),
+            model: M,
+            esc,
+            icon,
+            fmt,
+            dueText,
+            button,
+          })
+        : route === "cases"
+          ? dashboard()
+          : route === "case"
+            ? detail()
+            : route === "upcoming"
+              ? upcoming()
+              : route === "templates"
+                ? templates()
+                : settingsPage()) +
       '<footer class="page-footer"><span>Made for a little more peace of mind.</span><span>Karen’s Load · Personal Workspace</span></footer></main></div>';
   }
   function stats() {
@@ -521,7 +537,15 @@
       .filter((t) => !t.done)
       .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
     return (
-      '<button class="case-card" data-action="open-case" data-id="' +
+      '<button class="case-card ' +
+      (c.status !== "completed"
+        ? c.dueDate < M.today()
+          ? "case-overdue"
+          : M.dateDiff(M.today(), c.dueDate) <= 7
+            ? "case-due-soon"
+            : ""
+        : "") +
+      '" data-action="open-case" data-id="' +
       esc(c.id) +
       '"><span class="case-main"><span class="avatar avatar-' +
       (index % 4) +
@@ -709,7 +733,9 @@
       '<div class="timeline-weeks">' +
       [1, 2, 3, 4, 5]
         .map((w) => {
-          const ts = c.tasks.filter((t) => t.week === w),
+          const ts = c.tasks.filter(
+              (t) => t.week <= w && M.activityEndWeek(t) >= w,
+            ),
             done = ts.filter((t) => t.done).length;
           return (
             '<div class="timeline-week ' +
@@ -803,6 +829,86 @@
       "</aside></div>"
     );
   }
+  function activityRangeBadge(task) {
+    return M.activitySpansWeeks(task)
+      ? '<span class="activity-range-tag">Weeks ' +
+          task.week +
+          "–" +
+          M.activityEndWeek(task) +
+          "</span>"
+      : "";
+  }
+  function taskRow(c, task) {
+    const urgency =
+      !task.done && c.status !== "completed"
+        ? task.dueDate < M.today()
+          ? "urgent-overdue"
+          : M.dateDiff(M.today(), task.dueDate) <= 7
+            ? "urgent-soon"
+            : ""
+        : "";
+    const title =
+      '<span class="task-title">' +
+      esc(task.title) +
+      (task.optional ? '<span class="optional-tag">Optional</span>' : "") +
+      activityRangeBadge(task) +
+      "</span>";
+    const stages = task.requiresSubmission
+      ? '<div class="task-description">' +
+        title +
+        '<div class="task-stage-checks"><label><input type="checkbox" data-task-written="' +
+        esc(task.id) +
+        '" aria-label="Mark ' +
+        esc(task.title) +
+        ' Written"' +
+        (task.written || task.done ? " checked" : "") +
+        '> Written</label><label><input type="checkbox" data-task-check="' +
+        esc(task.id) +
+        '" aria-label="Mark ' +
+        esc(task.title) +
+        ' Submitted"' +
+        (task.done ? " checked" : "") +
+        "> Submitted</label></div></div>"
+      : '<label class="task-check"><input type="checkbox" data-task-check="' +
+        esc(task.id) +
+        '"' +
+        (task.done ? " checked" : "") +
+        ' aria-label="Complete ' +
+        esc(task.title) +
+        '">' +
+        title +
+        "</label>";
+    const dates = M.activitySpansWeeks(task)
+      ? fmt(M.activityStartDate(c, task)) + " – " + fmt(task.dueDate)
+      : fmt(task.dueDate);
+    return (
+      '<div class="task-row ' +
+      (task.done ? "is-done " : "") +
+      urgency +
+      (task.requiresSubmission ? " task-row--staged" : "") +
+      '">' +
+      stages +
+      '<div class="task-meta"><span>' +
+      dates +
+      "</span>" +
+      (urgency
+        ? '<strong class="activity-due-label">' +
+          (urgency === "urgent-overdue"
+            ? dueText(task.dueDate)
+            : task.dueDate === M.today()
+              ? "Due Today"
+              : dueText(task.dueDate)) +
+          "</strong>"
+        : "") +
+      '</div><div class="task-actions"><button class="icon-button" data-action="edit-task" data-id="' +
+      esc(task.id) +
+      '" aria-label="Edit ' +
+      esc(task.title) +
+      '">' +
+      icon("edit") +
+      "</button></div></div>"
+    );
+  }
   function tasksView(c) {
     return (
       '<div class="section-heading"><p class="muted small">Check off each activity as it is finished.</p>' +
@@ -828,38 +934,8 @@
             tasks.length +
             "</span></div>" +
             (tasks.length
-              ? tasks
-                  .map(
-                    (t) =>
-                      '<div class="task-row ' +
-                      (t.done ? "is-done" : "") +
-                      '"><label class="task-check"><input type="checkbox" data-task-check="' +
-                      esc(t.id) +
-                      '" ' +
-                      (t.done ? "checked" : "") +
-                      ' aria-label="Complete ' +
-                      esc(t.title) +
-                      '"><span class="task-title">' +
-                      esc(t.title) +
-                      (t.optional
-                        ? '<span class="optional-tag">Optional</span>'
-                        : "") +
-                      '</span></label><div class="task-meta ' +
-                      (!t.done && c.status !== "completed"
-                        ? dueClass(t.dueDate)
-                        : "") +
-                      '">' +
-                      fmt(t.dueDate) +
-                      '</div><div class="task-actions"><button class="icon-button" data-action="edit-task" data-id="' +
-                      esc(t.id) +
-                      '" aria-label="Edit ' +
-                      esc(t.title) +
-                      '">' +
-                      icon("edit") +
-                      "</button></div></div>",
-                  )
-                  .join("")
-              : '<p class="empty-week">No activities in this week.</p>') +
+              ? tasks.map((task) => taskRow(c, task)).join("")
+              : '<p class="empty-week">No activities start in this week.</p>') +
             "</section>"
           );
         })
@@ -1219,6 +1295,10 @@
                   icon("check") +
                   "</span><span>" +
                   esc(t.title) +
+                  activityRangeBadge(t) +
+                  (t.requiresSubmission
+                    ? '<span class="activity-workflow-tag">Written → Submitted</span>'
+                    : "") +
                   (t.optional
                     ? '<small class="optional-tag">Optional</small>'
                     : "") +
@@ -1887,7 +1967,9 @@
       old ? "Edit Activity" : "Add an Activity",
       '<div class="field"><label for="activity-title">Activity Name</label><input id="activity-title" name="title" maxlength="500" required value="' +
         esc(old ? old.title : "") +
-        '"></div><div class="form-grid"><div class="field"><label for="activity-week">Plan Week</label><select id="activity-week" name="week">' +
+        '"></div><label class="checkbox-label activity-option"><input type="checkbox" id="activity-spans" name="spansWeeks"' +
+        (old && M.activitySpansWeeks(old) ? " checked" : "") +
+        '> Spans Multiple Weeks</label><div class="form-grid"><div class="field"><label id="activity-week-label" for="activity-week">Plan Week</label><select id="activity-week" name="week">' +
         [1, 2, 3, 4, 5]
           .map(
             (w) =>
@@ -1900,13 +1982,30 @@
               "</option>",
           )
           .join("") +
+        '</select></div><div class="field" id="activity-end-field" hidden><label for="activity-end-week">End Week</label><select id="activity-end-week" name="endWeek">' +
+        [1, 2, 3, 4, 5]
+          .map(
+            (w) =>
+              '<option value="' +
+              w +
+              '"' +
+              (w === (old ? M.activityEndWeek(old) : week || 1)
+                ? " selected"
+                : "") +
+              ">Week " +
+              w +
+              "</option>",
+          )
+          .join("") +
         "</select></div>" +
         (!template
           ? '<div class="field"><label for="activity-due">Activity Due Date</label><input id="activity-due" type="date" name="dueDate" required value="' +
             (old ? old.dueDate : M.taskDue(c.startDate, c.dueDate, week || 1)) +
             '"></div>'
           : "") +
-        '</div><label class="checkbox-label"><input type="checkbox" name="optional" ' +
+        '</div><label class="checkbox-label activity-option"><input type="checkbox" name="requiresSubmission"' +
+        (old && old.requiresSubmission ? " checked" : "") +
+        '> Track Written and Submitted Separately</label><p class="form-help">Use two steps for activities that need a written draft and a final submission. Only Submitted counts as complete.</p><label class="checkbox-label activity-option"><input type="checkbox" name="optional" ' +
         (old && old.optional ? "checked" : "") +
         "> Optional / if Necessary</label>" +
         (!template
@@ -1928,9 +2027,15 @@
           id: old ? old.id : M.uid(),
           title: fd.get("title").trim(),
           week: Number(fd.get("week")),
+          endWeek: fd.has("spansWeeks")
+            ? Number(fd.get("endWeek"))
+            : Number(fd.get("week")),
+          requiresSubmission: fd.has("requiresSubmission"),
           optional: fd.has("optional"),
         };
         if (!t.title) throw new Error("Enter an activity name.");
+        if (t.endWeek < t.week)
+          throw new Error("The end week must be on or after the start week.");
         if (template) {
           const latestTemplate = templateLibrary().find(
             (entry) => entry.id === templateRecord.id,
@@ -1957,8 +2062,18 @@
           if (old && !latestTask)
             throw new Error("This activity was removed on another device.");
           t.done = latestTask ? latestTask.done : false;
+          t.written = t.requiresSubmission
+            ? Boolean(latestTask && (latestTask.written || latestTask.done))
+            : false;
           t.dueDate = fd.get("dueDate");
           M.dateDiff(t.dueDate, t.dueDate);
+          if (
+            M.activitySpansWeeks(t) &&
+            t.dueDate < M.activityStartDate(latest, t)
+          )
+            throw new Error(
+              "The activity due date must be on or after the start of its week range.",
+            );
           const copy = structuredClone(latest);
           if (old) copy.tasks[copy.tasks.findIndex((x) => x.id === old.id)] = t;
           else copy.tasks.push(t);
@@ -1969,6 +2084,31 @@
         toast("Activity saved.");
       },
     );
+    updateActivityEditor(false);
+  }
+  function updateActivityEditor(updateDueDate) {
+    const start = modal.querySelector("#activity-week"),
+      end = modal.querySelector("#activity-end-week"),
+      spans = modal.querySelector("#activity-spans");
+    if (!start || !end || !spans) return;
+    const week = Number(start.value);
+    if (Number(end.value) < week) end.value = String(week);
+    Array.from(end.options).forEach((option) => {
+      option.disabled = Number(option.value) < week;
+    });
+    document.getElementById("activity-week-label").textContent = spans.checked
+      ? "Start Week"
+      : "Plan Week";
+    document.getElementById("activity-end-field").hidden = !spans.checked;
+    const due = modal.querySelector("#activity-due");
+    if (updateDueDate && due) {
+      const c = currentCase();
+      due.value = M.taskDue(
+        c.startDate,
+        c.dueDate,
+        spans.checked ? Number(end.value) : week,
+      );
+    }
   }
   async function saveCase(c) {
     c.updatedAt = new Date().toISOString();
@@ -2070,9 +2210,19 @@
     render();
     window.scrollTo(0, 0);
   }
-  async function loadDemo() {
-    if (cases.length)
+  async function loadDemo(replaceExamples = false) {
+    if (cases.length && replaceExamples !== true)
       throw new Error("Example cases are available in an empty workspace.");
+    const previous = await DB.exportSync(),
+      previousDemoFiles = new Set(
+        previous.cases
+          .filter((record) => record.demo)
+          .flatMap((record) =>
+            record.attachments
+              .filter((file) => file.kind === "file")
+              .map((file) => file.fileId),
+          ),
+      );
     const examples = M.makeDemo().map((c) => ({ ...c, demo: true }));
     const demonstration = examples.find((c) => c.status === "in_progress");
     const complete = examples.find((c) => c.status === "completed");
@@ -2133,19 +2283,41 @@
         createdAt: new Date().toISOString(),
       },
     );
-    const seedSettings = { ...settings, initialized: true, demo: true };
-    // Seed records and evidence together; an interrupted first launch never leaves a partial demo.
-    await DB.importBackup({
-      format: "weekwise",
-      version: 1,
-      cases: examples,
+    const keptCases = previous.cases.filter((record) => !record.demo);
+    const seedSettings = {
+      ...settings,
+      initialized: true,
+      demo: true,
+      demoVersion: 2,
+    };
+    // Refresh only owned fictional records. Keep real records, settings, and file bytes atomically.
+    await DB.importSync({
+      cases: [...keptCases, ...examples],
       settings: seedSettings,
-      files,
+      files: [
+        ...previous.files.filter((file) => !previousDemoFiles.has(file.id)),
+        ...files.map((file) => ({
+          id: file.id,
+          blob: new Blob(
+            [
+              Uint8Array.from(atob(file.data), (character) =>
+                character.charCodeAt(0),
+              ),
+            ],
+            { type: file.type },
+          ),
+        })),
+      ],
     });
-    cases = examples;
+    cases = [...keptCases, ...examples];
     settings = seedSettings;
     render();
-    toast("Fictional examples loaded.");
+    queueReminderSync();
+    toast(
+      replaceExamples === true
+        ? "Examples refreshed. Cases you added are kept."
+        : "Fictional examples loaded.",
+    );
   }
   async function clearDemo() {
     for (const c of cases.filter((c) => c.demo)) await DB.deleteCase(c.id);
@@ -2232,6 +2404,37 @@
   }
   const actions = {
     navigate: (el) => navigate(el.dataset.route),
+    "overview-range": (el) => {
+      const days = Number(el.dataset.days);
+      overviewSelectedDate = days === 7 ? null : M.addDays(M.today(), days);
+      render();
+    },
+    "overview-submit": (el) =>
+      withWorkspaceWrite(async () => {
+        const current = cases.find((record) => record.id === el.dataset.caseId);
+        if (!current || current.status === "completed")
+          throw new Error(
+            "This case is no longer active. Refresh the Overview.",
+          );
+        const copy = structuredClone(current),
+          index = copy.tasks.findIndex((task) => task.id === el.dataset.id),
+          task = copy.tasks[index];
+        if (!task)
+          throw new Error("This activity was removed. Refresh the Overview.");
+        if (task.done) {
+          render();
+          return;
+        }
+        if (!M.isAwaitingSubmission(task))
+          throw new Error(
+            "This activity is no longer marked Written. Open the case to review it.",
+          );
+        copy.tasks[index] = M.setActivityChecks(task, { done: true });
+        if (copy.status === "open") copy.status = "in_progress";
+        await saveCase(copy);
+        render();
+        toast("Activity marked submitted.");
+      }),
     "case-status-filter": (el) => navigate("cases", el.dataset.filter),
     "select-template": (el) => {
       selectedTemplateId = el.dataset.id;
@@ -2514,6 +2717,17 @@
         false,
       ),
     "load-demo": loadDemo,
+    "refresh-demo": () =>
+      confirmAction(
+        "Refresh Example Cases?",
+        "Replace only the fictional examples with the latest demo, including week ranges and Written/Submitted stages. Cases you added keep their notes, activities, and evidence.",
+        "Refresh Examples",
+        async () => {
+          await loadDemo(true);
+          closeModal();
+          navigate("overview");
+        },
+      ),
     "clear-demo": () =>
       confirmAction(
         "Remove Example Cases?",
@@ -2588,6 +2802,7 @@
           "open-case",
           "metric",
           "case-status-filter",
+          "overview-range",
           "select-template",
           "detail-tab",
           "print",
@@ -2646,6 +2861,7 @@
         el.value === "completed" &&
         currentCase().tasks.some((task) => !task.done);
       return el.dataset.taskCheck ||
+        el.dataset.taskWritten ||
         (["case-status", "evidence-files"].includes(el.id) &&
           !confirmingCompletion)
         ? withWorkspaceWrite(() => handleChange(event))
@@ -2657,6 +2873,12 @@
   });
   async function handleChange(event) {
     const el = event.target;
+    if (el.id === "overview-through") {
+      if (el.value) M.dateDiff(M.today(), el.value);
+      overviewSelectedDate = el.value || null;
+      render();
+      return;
+    }
     if (el.id === "workspace-auth") {
       const google = el.value === "google";
       document.getElementById("workspace-key-field").hidden = google;
@@ -2669,13 +2891,10 @@
       navigate("cases", el.value);
       return;
     }
-    if (el.id === "activity-week" && modal.querySelector("[name=dueDate]")) {
-      const c = currentCase();
-      modal.querySelector("[name=dueDate]").value = M.taskDue(
-        c.startDate,
-        c.dueDate,
-        Number(el.value),
-      );
+    if (
+      ["activity-week", "activity-end-week", "activity-spans"].includes(el.id)
+    ) {
+      updateActivityEditor(true);
       return;
     }
     if (el.id === "evidence-files") {
@@ -2759,13 +2978,23 @@
       }
       return;
     }
-    if (el.dataset.taskCheck) {
+    if (el.dataset.taskCheck || el.dataset.taskWritten) {
       el.disabled = true;
       try {
         const c = structuredClone(currentCase()),
-          t = c.tasks.find((t) => t.id === el.dataset.taskCheck);
-        t.done = el.checked;
-        if (t.done && c.status === "open") c.status = "in_progress";
+          index = c.tasks.findIndex(
+            (t) => t.id === (el.dataset.taskCheck || el.dataset.taskWritten),
+          );
+        if (index < 0) throw new Error("This activity is no longer available.");
+        const t = M.setActivityChecks(
+          c.tasks[index],
+          el.dataset.taskWritten
+            ? { written: el.checked }
+            : { done: el.checked },
+        );
+        c.tasks[index] = t;
+        if ((t.done || t.written) && c.status === "open")
+          c.status = "in_progress";
         await saveCase(c);
         render();
         if (c.tasks.every((t) => t.done) && c.status !== "completed")
@@ -2911,6 +3140,22 @@
       if (!settings.initialized && !sync.isConnected()) {
         if (!cases.length) await loadDemo();
         else await saveSettings({ ...settings, initialized: true });
+      }
+      if (
+        !sync.isConnected() &&
+        settings.demo &&
+        settings.demoVersion !== 2 &&
+        cases.some((record) => record.demo)
+      ) {
+        try {
+          await loadDemo(true);
+        } catch (error) {
+          toast(
+            "The examples could not be refreshed. Your saved cases were kept. " +
+              error.message,
+            true,
+          );
+        }
       }
       if (!Array.isArray(settings.templates) && !sync.isConnected()) {
         await saveTemplateLibrary(templateLibrary());

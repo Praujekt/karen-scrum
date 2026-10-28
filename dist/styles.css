@@ -636,6 +636,26 @@ hr {
   border-color: #bbcdbb;
   box-shadow: 0 4px 16px #203e3805;
 }
+.case-card.case-overdue {
+  border-left: 4px solid #b54e47;
+  background: linear-gradient(90deg, #fdf1ee 0, #fff 35%);
+}
+.case-card.case-due-soon {
+  border-left: 4px solid #bd8037;
+  background: linear-gradient(90deg, #fff7e9 0, #fff 35%);
+}
+.case-card.case-overdue .case-due {
+  background: #f9e6e1;
+  border: 1px solid #efc9c2;
+  border-radius: 7px;
+  padding: 6px 9px;
+}
+.case-card.case-due-soon .case-due {
+  background: #fff3db;
+  border: 1px solid #efdab5;
+  border-radius: 7px;
+  padding: 6px 9px;
+}
 .case-card:focus-visible {
   outline-offset: 3px;
 }
@@ -1095,6 +1115,82 @@ hr {
 }
 .task-row:last-child {
   border-bottom: 0;
+}
+.task-row.urgent-overdue {
+  border-left: 4px solid #b54e47;
+  background: #fdf3f0;
+}
+.task-row.urgent-soon {
+  border-left: 4px solid #bd8037;
+  background: #fff9ee;
+}
+.task-row > .task-meta {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 190px;
+}
+.task-row.urgent-overdue .activity-due-label {
+  color: #9d3935;
+  background: #f8e1dc;
+}
+.task-row.urgent-soon .activity-due-label {
+  color: #8b5a23;
+  background: #faebce;
+}
+.activity-due-label {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 1.4;
+  border-radius: 5px;
+  padding: 3px 7px;
+}
+.activity-range-tag,
+.activity-workflow-tag {
+  display: inline-block;
+  margin: 3px 0 3px 7px;
+  padding: 1px 6px;
+  border: 1px solid #d8e1da;
+  border-radius: 4px;
+  background: #edf3ef;
+  color: #405e53;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.activity-workflow-tag {
+  background: #edf0f7;
+  color: #52627d;
+  border-color: #d9dfeb;
+}
+.task-description {
+  flex: 1;
+  min-width: 0;
+}
+.task-stage-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.task-stage-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #fff;
+  border: 1px solid #dce5dd;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.task-stage-checks label:has(input:checked) {
+  background: #e9f1e7;
+  border-color: #b8cebb;
+  color: #355b43;
+}
+.activity-option {
+  margin: 12px 0;
 }
 .task-check {
   display: flex;
@@ -2377,6 +2473,30 @@ textarea {
   }
 }
 @media (max-width: 700px) {
+  .task-row {
+    flex-wrap: wrap;
+  }
+  .task-row > .task-check,
+  .task-row > .task-description {
+    flex: 1 1 calc(100% - 38px);
+    order: 0;
+  }
+  .task-row > .task-actions {
+    order: 1;
+  }
+  .task-row > .task-meta {
+    flex: 1 1 100%;
+    max-width: none;
+    order: 2;
+    align-items: flex-start;
+    margin-left: 26px;
+  }
+  .task-row--staged > .task-meta {
+    margin-left: 0;
+  }
+  .task-stage-checks label {
+    min-height: 36px;
+  }
   .template-library-list {
     grid-template-columns: minmax(0, 1fr);
   }

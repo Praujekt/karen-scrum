@@ -76,6 +76,13 @@ test(
       .locator(".demo-banner")
       .getByText("Example Workspace", { exact: true })
       .waitFor();
+    await page
+      .getByRole("button", { name: /^All Cases/ })
+      .first()
+      .click();
+    await page
+      .getByLabel("Filter Cases", { exact: true })
+      .selectOption("active");
     assert.equal(
       await page.locator(".case-card").count(),
       4,
@@ -433,6 +440,10 @@ test(
       .getByRole("button", { name: "Delete Case", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
+    await page
+      .getByRole("button", { name: /^All Cases/ })
+      .first()
+      .click();
     assert.equal(await page.locator(".case-card").count(), 1);
 
     await page
@@ -499,6 +510,10 @@ test(
       .getByRole("button", { name: "Clear Everything", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
+    await page
+      .getByRole("button", { name: /^All Cases/ })
+      .first()
+      .click();
     assert.equal(await page.locator(".case-card").count(), 0);
     await page.reload();
     await page.getByRole("button", { name: "New Case", exact: true }).waitFor();
@@ -508,11 +523,18 @@ test(
       "Cleared examples do not return after reload.",
     );
     assert.equal(await page.locator(".demo-banner").count(), 0);
+    await page
+      .getByRole("button", { name: "Reminders & Settings", exact: true })
+      .click();
     await page.locator("#restore-file").setInputFiles(backupPath);
     await dialog
       .getByRole("button", { name: "Restore Backup", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
+    await page
+      .getByRole("button", { name: /^All Cases/ })
+      .first()
+      .click();
     await page
       .locator(".case-card")
       .filter({ hasText: "UI Test Patient" })
