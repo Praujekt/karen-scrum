@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#203e38" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; connect-src 'self' https:; object-src 'none'; base-uri 'none'; form-action 'self'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      name="description"
+      content="A little clarity for your caseload. A personal, local case and assessment planner."
+    />
+    <title>Weekwise · Your caseload, clearly</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="model.js" defer></script>
+    <script src="data.js" defer></script>
+    <script src="reminder-client.js" defer></script>
+    <script src="workspace-sync.js" defer></script>
+    <script src="google-signin.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div id="app">
+      <main class="loading-screen">
+        <div class="brand-mark">✓</div>
+        <h1>Weekwise</h1>
+        <p>Opening your workspace…</p>
+      </main>
+    </div>
+    <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <input
+      type="file"
+      id="restore-file"
+      accept="application/json,.json"
+      hidden
+    />
+    <noscript
+      >Weekwise needs JavaScript enabled to save and organize your cases on this
+      laptop.</noscript
+    >
+  </body>
+</html>

@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.local/
+.qa-tools/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.qa-artifacts/
+node_modules/
+*.log
+*.zip
+.DS_Store
+Thumbs.db

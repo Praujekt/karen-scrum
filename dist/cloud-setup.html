@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'"
+    />
+    <title>Cloud reminders · Weekwise</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <style>
+      .guide {
+        max-width: 760px;
+        margin: 50px auto;
+        padding: 0 24px 40px;
+      }
+      .guide h1 {
+        margin: 20px 0 12px;
+      }
+      .guide h2 {
+        margin: 30px 0 12px;
+      }
+      .guide p,
+      .guide li {
+        font-size: 14px;
+        line-height: 1.9;
+        margin-bottom: 12px;
+      }
+      .guide ol {
+        padding-left: 22px;
+      }
+      .guide .panel {
+        padding: 25px;
+        margin-top: 25px;
+      }
+      .guide code {
+        background: #edf2e8;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="guide">
+      <a class="subtle-link" href="./#settings">← Back to Weekwise</a>
+      <p class="eyebrow" style="margin-top: 30px">Optional delivery setup</p>
+      <h1>Reminders while the laptop is off.</h1>
+      <p>
+        Weekwise can use a small Cloudflare service to run a daily reminder
+        schedule independently of your laptop. The website and all case records
+        remain separate from that service.
+      </p>
+      <div class="panel">
+        <h2 style="margin-top: 0">You can try the tracker first.</h2>
+        <p>
+          Cases, weekly activities, notes, evidence, and backups work without
+          cloud setup. Reminders stay off until you connect a service and enable
+          a delivery channel.
+        </p>
+      </div>
+      <h2>What your developer sets up</h2>
+      <ol>
+        <li>
+          Deploy the included <code>cloud-reminders</code> Worker and its D1
+          database using the repository’s cloud reminder guide.
+        </li>
+        <li>
+          Set the allowed website origin to the address hosting Weekwise, and
+          create a private connection token.
+        </li>
+        <li>
+          Add email or SMS provider credentials to Cloudflare secrets. Email
+          uses Resend; SMS uses Twilio. Provider account setup and charges are
+          separate.
+        </li>
+        <li>
+          Give you the HTTPS service URL and connection token. Provider
+          credentials never belong in this website or its public source.
+        </li>
+      </ol>
+      <h2>Connect from Weekwise</h2>
+      <ol>
+        <li>
+          Open
+          <strong>Reminders &amp; settings → Connect cloud reminders</strong>.
+        </li>
+        <li>
+          Paste the service URL and connection token, then choose
+          <strong>Connect service</strong>.
+        </li>
+        <li>
+          Choose email or SMS, enter your recipient, and set the daily time and
+          deadline window. The screen shows the time zone used when saving.
+        </li>
+        <li>
+          Enable daily reminders and save. A test reminder is available after
+          saving a delivery channel.
+        </li>
+      </ol>
+      <p>
+        Connecting cloud reminders pauses any active local reminder schedule.
+        The cloud uses the latest dates synced from this browser. Open Weekwise
+        and wait for synchronization after changing a case or restoring a
+        backup.
+      </p>
+      <h2>What leaves this browser</h2>
+      <p>
+        The service receives active-case counts, unfinished deadline dates, and
+        your delivery preferences, including the recipient. Patient names,
+        activity titles, notes, and evidence are excluded. Messages contain
+        counts and date windows.
+      </p>
+      <p>
+        The connection token stays in this browser’s local storage, separately
+        from case backups. Keep your original token somewhere secure. Connecting
+        reminders does not synchronize cases between devices.
+      </p>
+      <h2>Pause or disconnect</h2>
+      <p>
+        Turn off daily reminders and save to pause delivery.
+        <strong>Disconnect cloud reminders</strong> first disables the cloud
+        schedule, then removes the saved connection token. If the service cannot
+        be reached, Weekwise keeps the connection so you can retry. Clearing
+        browser data alone does not stop a cloud schedule.
+      </p>
+      <p>
+        Local reminders remain available through
+        <code>Start Weekwise.cmd</code>; those require the laptop awake, online,
+        and the local service running.
+      </p>
+    </main>
+  </body>
+</html>
