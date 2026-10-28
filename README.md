@@ -1,5 +1,7 @@
 # Weekwise
 
+[Open the hosted trial](https://praujekt.github.io/karen-scrum/) on a laptop or phone. It starts with six editable fictional patients; no installation is needed to try the website.
+
 A personal case and assessment planner for Karen, with a responsive laptop/phone interface. It works locally or on a static host such as GitHub Pages. An optional encrypted shared workspace connects her devices; a separate cloud scheduler can send reminders while the laptop is off. All project work lives in this directory.
 
 The initial trial uses fictional records and local browser storage. **Shared storage, Google sign-in, and real email/SMS delivery need their account settings and backend deployment before activation.** No real patient data or provider credentials are included in this repository.
