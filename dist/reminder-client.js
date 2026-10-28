@@ -47,7 +47,7 @@
       "The saved cloud connection could not be read. Reconnect the same service to manage its schedule.";
   }
   function currentTimeZone() {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return "America/Los_Angeles";
   }
   async function request(path, method, body, candidate) {
     const chosen = candidate || sharedConnection() || connection;
@@ -120,7 +120,7 @@
         !Number.isInteger(data.config.daysAhead))
     ) {
       throw new Error(
-        "This URL did not return a valid Weekwise reminder service.",
+        "This URL did not return a valid Karen's Load reminder service.",
       );
     }
     return data;

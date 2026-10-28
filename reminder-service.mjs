@@ -10,8 +10,16 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  TIME_ZONE as BUSINESS_TIME_ZONE,
+  zonedClock,
+} from "./cloud-reminders/contracts.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+export const TIME_ZONE = BUSINESS_TIME_ZONE;
+export function pacificClock(now = new Date()) {
+  return zonedClock(now, TIME_ZONE);
+}
 export const defaultConfig = () => ({
   enabled: false,
   channels: [],
@@ -52,9 +60,6 @@ export function validDate(value) {
     date.toISOString().slice(0, 10) === value &&
     Number(value.slice(0, 4)) >= 1900
   );
-}
-function dateString(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -156,14 +161,10 @@ export function validatePayload(
   };
 }
 export function deadlineSummary(snapshot, config, now = new Date()) {
-  const today = dateString(now),
-    end = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + config.daysAhead,
-      12,
-    );
-  const through = dateString(end);
+  const today = pacificClock(now).day,
+    end = new Date(today + "T12:00:00Z");
+  end.setUTCDate(end.getUTCDate() + config.daysAhead);
+  const through = end.toISOString().slice(0, 10);
   const count = (dates) =>
     dates.filter(
       (date) => date <= through && (config.includeOverdue || date >= today),
@@ -283,7 +284,7 @@ export function createReminderService({
         body: JSON.stringify({
           from: env.REMINDER_EMAIL_FROM,
           to: [config.email],
-          subject: "Weekwise · Your deadline reminder",
+          subject: "Karen's Load · Your deadline reminder",
           text,
         }),
         signal: AbortSignal.timeout(20000),
@@ -351,14 +352,11 @@ export function createReminderService({
     async run({ test = false } = {}) {
       return locked(async () => {
         const state = await readState(),
-          current = now();
+          current = now(),
+          clock = pacificClock(current);
         if (!test && !state.config.enabled) return { skipped: "disabled" };
         const summary = deadlineSummary(state.snapshot, state.config, current);
-        if (
-          !test &&
-          `${String(current.getHours()).padStart(2, "0")}:${String(current.getMinutes()).padStart(2, "0")}` <
-            state.config.time
-        )
+        if (!test && clock.time < state.config.time)
           return { skipped: "before-time" };
         if (test && !state.config.channels.length)
           throw new ReminderError(
@@ -371,8 +369,8 @@ export function createReminderService({
           return { skipped: "no-deadlines" };
         }
         const text = test
-          ? "Weekwise test reminder. Your reminder connection is working. No patient information is included."
-          : `Weekwise reminder: ${summary.tasks} unfinished task${summary.tasks === 1 ? "" : "s"} and ${summary.cases} active case deadline${summary.cases === 1 ? "" : "s"} due through ${summary.through}${state.config.includeOverdue ? ", including overdue work" : ""}. Open Weekwise on your laptop to review. No patient information is included.`;
+          ? "Karen's Load test reminder. Your reminder connection is working. No patient information is included."
+          : `Karen's Load reminder: ${summary.tasks} unfinished task${summary.tasks === 1 ? "" : "s"} and ${summary.cases} active case deadline${summary.cases === 1 ? "" : "s"} due through ${summary.through}${state.config.includeOverdue ? ", including overdue work" : ""}. Open Karen's Load on your laptop to review. No patient information is included.`;
         const results = {};
         state.lastRun = current.toISOString();
         const errors = [];

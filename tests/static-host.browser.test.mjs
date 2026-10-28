@@ -6,6 +6,9 @@ import { createServer } from "node:http";
 import { readFile, readdir } from "node:fs/promises";
 
 const require = createRequire(import.meta.url);
+const browserExecutable =
+  process.env.KARENS_LOAD_BROWSER_EXECUTABLE ||
+  process.env.WEEKWISE_BROWSER_EXECUTABLE;
 let chromium;
 try {
   ({ chromium } = require("playwright"));
@@ -60,9 +63,9 @@ test(
       await new Promise((resolve) => server.close(resolve));
     });
     browser = await chromium.launch(
-      process.env.WEEKWISE_BROWSER_EXECUTABLE
+      browserExecutable
         ? {
-            executablePath: process.env.WEEKWISE_BROWSER_EXECUTABLE,
+            executablePath: browserExecutable,
             headless: true,
           }
         : { channel: "chrome", headless: true },
@@ -86,12 +89,12 @@ test(
     const response = await page.goto(origin + "/karen-scrum/");
     assert.equal(response.status(), 200);
     const dialog = page.getByRole("dialog");
-    await page.getByRole("button", { name: "New case", exact: true }).click();
-    await dialog.getByLabel("Patient name").fill("Static hosting test patient");
-    await dialog.getByLabel("Case opened").fill("2040-11-01");
-    await dialog.getByLabel("Final due date").fill("2040-12-31");
+    await page.getByRole("button", { name: "New Case", exact: true }).click();
+    await dialog.getByLabel("Patient Name").fill("Static hosting test patient");
+    await dialog.getByLabel("Case Opened").fill("2040-11-01");
+    await dialog.getByLabel("Final Due Date").fill("2040-12-31");
     await dialog
-      .getByRole("button", { name: "Create case", exact: true })
+      .getByRole("button", { name: "Create Case", exact: true })
       .click();
     await page
       .getByRole("heading", {
@@ -111,12 +114,12 @@ test(
         (await WWStore.getCases()).find((c) => c.id === id).tasks[0].done,
       caseId,
     );
-    await page.getByRole("button", { name: "Edit case", exact: true }).click();
+    await page.getByRole("button", { name: "Edit Case", exact: true }).click();
     await dialog
-      .getByLabel("Patient name")
+      .getByLabel("Patient Name")
       .fill("Updated static hosting patient");
     await dialog
-      .getByRole("button", { name: "Save case", exact: true })
+      .getByRole("button", { name: "Save Case", exact: true })
       .click();
     await page
       .getByRole("heading", {
@@ -141,17 +144,17 @@ test(
       "2040-12-03",
     );
     await page
-      .getByRole("button", { name: "Delete case", exact: true })
+      .getByRole("button", { name: "Delete Case", exact: true })
       .click();
     await dialog
-      .getByRole("button", { name: "Delete case", exact: true })
+      .getByRole("button", { name: "Delete Case", exact: true })
       .click();
     await page.waitForFunction(
       async (id) => !(await WWStore.getCases()).some((c) => c.id === id),
       caseId,
     );
     await page.reload();
-    await page.getByRole("button", { name: "New case", exact: true }).waitFor();
+    await page.getByRole("button", { name: "New Case", exact: true }).waitFor();
     assert.equal(
       await page.evaluate(
         async (id) => (await WWStore.getCases()).some((c) => c.id === id),

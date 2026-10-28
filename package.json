@@ -1,9 +1,11 @@
 {
-  "name": "weekwise",
+  "name": "karens-load",
   "version": "1.0.0",
   "private": true,
-  "description": "A lightweight, local-first case and assessment tracker.",
-  "engines": { "node": ">=22.13" },
+  "description": "Karen's Load: a lightweight personal case and assessment tracker.",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",

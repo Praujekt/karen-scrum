@@ -16,7 +16,8 @@
     reminder = null,
     reminderError = "",
     route = "overview",
-    selectedId = null;
+    selectedId = null,
+    selectedTemplateId = null;
   let filter = "active",
     query = "",
     detailTab = "activities",
@@ -80,8 +81,8 @@
     return result;
   }
   const statusNames = {
-    open: "Pending",
-    in_progress: "In progress",
+    open: "Not Started",
+    in_progress: "In Progress",
     completed: "Completed",
   };
   const paths = {
@@ -136,19 +137,21 @@
     );
   }
   function fmt(value, full) {
-    return new Date(value + "T12:00:00").toLocaleDateString(
+    return new Date(value + "T12:00:00Z").toLocaleDateString(
       undefined,
       full
-        ? { month: "long", day: "numeric", year: "numeric" }
-        : { month: "short", day: "numeric" },
+        ? { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }
+        : { month: "short", day: "numeric", timeZone: "UTC" },
     );
   }
   function stamp(value) {
     return new Date(value).toLocaleString(undefined, {
+      timeZone: M.TIME_ZONE,
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      timeZoneName: "short",
     });
   }
   function initials(name) {
@@ -182,9 +185,9 @@
     return days < 0
       ? Math.abs(days) + "d overdue"
       : days === 0
-        ? "Due today"
+        ? "Due Today"
         : days === 1
-          ? "Due tomorrow"
+          ? "Due Tomorrow"
           : "Due in " + days + " days";
   }
   function dueClass(date) {
@@ -265,19 +268,19 @@
     return settings.demo
       ? '<div class="demo-banner"><span>' +
           icon("info") +
-          " <strong>Example workspace</strong> · All patient names and records are fictional.</span>" +
-          button("clear-demo", "Remove examples", "ghost small") +
+          " <strong>Example Workspace</strong> · All patient names and records are fictional.</span>" +
+          button("clear-demo", "Remove Examples", "ghost small") +
           "</div>"
       : "";
   }
-  function nav(id, name, ic, count) {
+  function nav(id, name, ic, count, active = route === id) {
     return (
       '<button class="nav-item ' +
-      (route === id ? "active" : "") +
+      (active ? "active" : "") +
       '" data-action="navigate" data-route="' +
       id +
       '" ' +
-      (route === id ? 'aria-current="page"' : "") +
+      (active ? 'aria-current="page"' : "") +
       ">" +
       icon(ic) +
       "<span>" +
@@ -287,18 +290,67 @@
       "</button>"
     );
   }
+  const caseFolderFilters = [
+    ["open", "Not Started"],
+    ["in_progress", "In Progress"],
+    ["completed", "Completed"],
+  ];
+  const caseFilterPaths = {
+    all: "cases",
+    active: "cases/active",
+    due: "cases/due",
+    open: "cases/not-started",
+    in_progress: "cases/in-progress",
+    completed: "cases/completed",
+  };
+  function caseFolders() {
+    const childSelected =
+      route === "cases" &&
+      caseFolderFilters.some(([value]) => value === filter);
+    return (
+      '<div class="nav-case-folder">' +
+      nav(
+        "cases",
+        "All Cases",
+        "folder",
+        cases.length,
+        route === "cases" && !childSelected,
+      ) +
+      '<div class="nav-subgroup" role="group" aria-label="Case Status Folders">' +
+      caseFolderFilters
+        .map(([value, label]) => {
+          const active = route === "cases" && filter === value;
+          return (
+            '<button type="button" class="nav-item nav-subitem ' +
+            value.replace("_", "-") +
+            (active ? " active" : "") +
+            '" data-action="case-status-filter" data-filter="' +
+            value +
+            '"' +
+            (active ? ' aria-current="page"' : "") +
+            '><span class="folder-status-dot" aria-hidden="true"></span><span>' +
+            label +
+            '</span><span class="nav-count">' +
+            cases.filter((c) => c.status === value).length +
+            "</span></button>"
+          );
+        })
+        .join("") +
+      "</div></div>"
+    );
+  }
   function render() {
     if (workspaceWriteDepth) return;
     if (sync.isConnected() && !sync.isUnlocked()) {
       app.innerHTML =
         '<main class="loading-screen workspace-locked"><div class="brand-mark">' +
         icon("shield") +
-        '</div><p class="eyebrow">Weekwise · Shared workspace</p><h1>Unlock your workspace.</h1>' +
+        '</div><p class="eyebrow">Karen’s Load · Shared Workspace</p><h1>Unlock Your Workspace</h1>' +
         "<p>Sign in and enter your encryption passphrase to open the records on this device.</p>" +
         '<p class="form-help">Your passphrase is never saved. This browser’s case view stays hidden until unlocked.</p>' +
         '<div class="form-actions">' +
-        button("unlock-workspace", "Unlock shared workspace", "primary") +
-        button("disconnect-workspace", "Disconnect this browser", "secondary") +
+        button("unlock-workspace", "Unlock Shared Workspace", "primary") +
+        button("disconnect-workspace", "Disconnect This Browser", "secondary") +
         "</div></main>";
       return;
     }
@@ -306,22 +358,22 @@
       route = "overview";
     const titles = {
       overview: "Overview",
-      cases: "All cases",
-      upcoming: "Coming up",
-      templates: "Activity template",
-      settings: "Reminders & settings",
-      case: "Case details",
+      cases: "All Cases",
+      upcoming: "Coming Up",
+      templates: "Activity Templates",
+      settings: "Reminders & Settings",
+      case: "Case Details",
     };
     app.innerHTML =
-      '<div class="app-shell"><aside class="sidebar"><a href="#overview" class="brand" aria-label="Weekwise overview"><span class="brand-mark">' +
+      '<div class="app-shell"><aside class="sidebar"><a href="#overview" class="brand" aria-label="Karen’s Load Overview"><span class="brand-mark">' +
       icon("calendar") +
-      '</span><span class="brand-name">weekwise<span class="brand-period">.</span></span></a><p class="workspace-label">Your workspace</p><nav class="nav-group" aria-label="Main navigation">' +
+      '</span><span class="brand-name">Karen’s <span class="brand-subname">Load<span class="brand-period">.</span></span></span></a><p class="workspace-label">Your Workspace</p><nav class="nav-group" aria-label="Main Navigation">' +
       nav("overview", "Overview", "grid") +
-      nav("cases", "All cases", "folder", cases.length) +
-      nav("upcoming", "Coming up", "calendar") +
-      '</nav><div class="nav-divider"></div><p class="workspace-label">Make it yours</p><nav class="nav-group" aria-label="Workspace settings">' +
-      nav("templates", "Activity template", "file") +
-      nav("settings", "Reminders & settings", "bell") +
+      caseFolders() +
+      nav("upcoming", "Coming Up", "calendar") +
+      '</nav><div class="nav-divider"></div><p class="workspace-label">Make It Yours</p><nav class="nav-group" aria-label="Workspace Settings">' +
+      nav("templates", "Activity Templates", "file") +
+      nav("settings", "Reminders & Settings", "bell") +
       '</nav><div class="sidebar-bottom"><div class="sidebar-illustration">' +
       icon("leaf") +
       '</div><div class="local-status">' +
@@ -338,13 +390,14 @@
       titles[route] +
       '</strong></div><div class="topbar-actions"><span class="save-indicator">' +
       icon("shield") +
-      ' Local workspace</span><span class="today-date">' +
+      ' Local Workspace</span><span class="today-date">' +
       new Date().toLocaleDateString(undefined, {
+        timeZone: M.TIME_ZONE,
         weekday: "short",
         month: "short",
         day: "numeric",
       }) +
-      '</span><span class="profile-avatar" aria-label="Personal workspace">K</span></div></div>' +
+      '</span><span class="profile-avatar" aria-label="Personal Workspace">K</span></div></div>' +
       workspaceBanner() +
       demoBanner() +
       (route === "overview" || route === "cases"
@@ -356,7 +409,7 @@
             : route === "templates"
               ? templates()
               : settingsPage()) +
-      '<footer class="page-footer"><span>Made for a little more peace of mind.</span><span>Weekwise · Personal workspace</span></footer></main></div>';
+      '<footer class="page-footer"><span>Made for a little more peace of mind.</span><span>Karen’s Load · Personal Workspace</span></footer></main></div>';
   }
   function stats() {
     const active = activeCases(),
@@ -364,7 +417,7 @@
     const values = [
       [
         "folder",
-        "Open cases",
+        "Open Cases",
         active.length,
         active.filter((c) => c.status === "in_progress").length +
           " currently in progress",
@@ -372,7 +425,7 @@
       ],
       [
         "calendar",
-        "Cases due soon",
+        "Cases Due Soon",
         active.filter((c) => M.dateDiff(M.today(), c.dueDate) <= 7).length,
         "Next 7 days" +
           (late ? " · " + late + " overdue" : " · including today"),
@@ -380,14 +433,14 @@
       ],
       [
         "clock",
-        "Pending cases",
+        "Not Started Cases",
         active.filter((c) => c.status === "open").length,
         "Ready to get started",
         "open",
       ],
       [
         "circle",
-        "Total completed",
+        "Total Completed",
         cases.filter((c) => c.status === "completed").length,
         "All your completed cases",
         "completed",
@@ -433,20 +486,20 @@
   }
   function toolbar() {
     const options = [
-      ["active", "All active"],
-      ["open", "Pending"],
-      ["in_progress", "In progress"],
+      ["active", "All Active"],
+      ["open", "Not Started"],
+      ["in_progress", "In Progress"],
       ["completed", "Completed"],
-      ["all", "All cases"],
+      ["all", "All Cases"],
     ];
     return (
       '<div class="toolbar"><label class="search-field">' +
       icon("search") +
-      '<span class="sr-only">Search patients</span><input type="search" id="case-search" placeholder="Search patients…" value="' +
+      '<span class="sr-only">Search Patients</span><input type="search" id="case-search" placeholder="Search patients…" value="' +
       esc(query) +
-      '"></label><label class="sr-only" for="case-filter">Filter cases</label><select id="case-filter" class="filter-select">' +
+      '"></label><label class="sr-only" for="case-filter">Filter Cases</label><select id="case-filter" class="filter-select">' +
       (filter === "due"
-        ? '<option value="due" selected>Due soon & overdue</option>'
+        ? '<option value="due" selected>Due Soon & Overdue</option>'
         : "") +
       options
         .map(
@@ -478,7 +531,7 @@
       esc(c.name) +
       '</span><span class="case-meta">' +
       (c.status === "completed"
-        ? "Case completed"
+        ? "Case Completed"
         : next
           ? esc(next.title)
           : "All activities checked off") +
@@ -490,7 +543,7 @@
       '"><strong>' +
       fmt(c.dueDate) +
       "</strong><small>" +
-      (c.status === "completed" ? "Final deadline" : dueText(c.dueDate)) +
+      (c.status === "completed" ? "Final Deadline" : dueText(c.dueDate)) +
       '</small></span><span class="case-arrow">' +
       icon("arrow") +
       "</span></span></button>"
@@ -502,8 +555,8 @@
       ? list.map(card).join("")
       : empty(
           cases.length
-            ? "No cases in this view"
-            : "A clearer caseload starts here",
+            ? "No Cases in This View"
+            : "A Clearer Caseload Starts Here",
           cases.length
             ? "Try another filter or patient name."
             : "Add your first patient to turn a final due date into a clear, five-week plan.",
@@ -511,11 +564,11 @@
             ? ""
             : button(
                 "new-case",
-                icon("plus") + " Add your first case",
+                icon("plus") + " Add Your First Case",
                 "primary",
               ) +
                 '<div class="empty-demo">' +
-                button("load-demo", "Try example cases", "ghost") +
+                button("load-demo", "Try Example Cases", "ghost") +
                 "</div>",
         );
   }
@@ -523,14 +576,14 @@
     const isOverview = route === "overview";
     return (
       header(
-        isOverview ? "A little clarity, every day" : "Your caseload",
-        isOverview ? "Your work, at a glance." : "A place for every case.",
+        isOverview ? "A Little Clarity, Every Day" : "Your Caseload",
+        isOverview ? "Your Work, at a Glance." : "A Place for Every Case.",
         "Keep the next step in sight, and the bigger picture in balance.",
-        button("new-case", icon("plus") + " New case", "primary"),
+        button("new-case", icon("plus") + " New Case", "primary"),
       ) +
       stats() +
       '<div class="dashboard-grid"><section class="content-column"><div class="section-heading"><h2>' +
-      (isOverview ? "Your cases" : "All cases") +
+      (isOverview ? "Your Open Cases" : "All Cases") +
       '</h2><span class="muted small">' +
       activeCases().length +
       " active</span></div>" +
@@ -541,7 +594,7 @@
       icon("calendar") +
       '<span><strong>Plan from the finish line.</strong> Set a final deadline and your weekly activity dates work backward from there.</span></div></section><aside class="aside-column">' +
       agendaPanel() +
-      '<section class="panel workload-panel"><div class="section-heading"><h2>The weekly picture</h2>' +
+      '<section class="panel workload-panel"><div class="section-heading"><h2>The Weekly Picture</h2>' +
       icon("leaf") +
       '</div><p class="muted small">Unfinished activities by plan week</p><div class="week-strip">' +
       [1, 2, 3, 4, 5]
@@ -565,8 +618,8 @@
         .join("") +
       '</div></section><div class="tip-card"><span class="tip-icon">' +
       icon("shield") +
-      "</span><h3>A workspace that stays with you.</h3><p>Cases and evidence are saved in this browser on this laptop. Download a backup to keep a separate copy.</p>" +
-      button("backup", "Download backup " + icon("arrow"), "ghost small") +
+      "</span><h3>A Workspace That Stays with You.</h3><p>Cases and evidence are saved in this browser on this laptop. Download a backup to keep a separate copy.</p>" +
+      button("backup", "Download Backup " + icon("arrow"), "ghost small") +
       "</div></aside></div>"
     );
   }
@@ -584,7 +637,7 @@
       (x) => M.dateDiff(M.today(), x.t.dueDate) <= 7,
     );
     return (
-      '<section class="panel agenda-panel"><div class="section-heading"><h2>Needs a little attention</h2><span class="agenda-bell">' +
+      '<section class="panel agenda-panel"><div class="section-heading"><h2>Needs a Little Attention</h2><span class="agenda-bell">' +
       icon("bell") +
       '</span></div><p class="muted small">Overdue & the next 7 days</p><div class="agenda-list">' +
       (items.length
@@ -620,7 +673,7 @@
       "</div>" +
       button(
         "navigate",
-        "View upcoming work " + icon("arrow"),
+        "View Upcoming Work " + icon("arrow"),
         "ghost small",
         'data-route="upcoming"',
       ) +
@@ -634,22 +687,22 @@
       '<div class="detail-heading">' +
       button(
         "navigate",
-        icon("back") + " All cases",
+        icon("back") + " All Cases",
         "ghost small",
         'data-route="cases"',
       ) +
       "</div>" +
       header(
-        "Patient case",
+        "Patient Case",
         esc(c.name),
         "Opened " +
           fmt(c.startDate) +
           ' <span class="dot-divider">·</span> Final deadline ' +
           fmt(c.dueDate, true),
-        button("edit-case", icon("edit") + " Edit case", "secondary") +
-          button("print", icon("file") + " Print plan", "secondary"),
+        button("edit-case", icon("edit") + " Edit Case", "secondary") +
+          button("print", icon("file") + " Print Plan", "secondary"),
       ) +
-      '<div class="detail-grid"><section><div class="panel timeline-summary"><div class="section-heading"><h2>The path to completion</h2><strong>' +
+      '<div class="detail-grid"><section><div class="panel timeline-summary"><div class="section-heading"><h2>The Path to Completion</h2><strong>' +
       p.percent +
       "%</strong></div>" +
       progress(c) +
@@ -675,7 +728,7 @@
         .join("") +
       '</div><p class="form-help">Weekly target dates work backward from ' +
       fmt(c.dueDate) +
-      '. Each activity date can be changed.</p></div><div class="detail-tabs tabs" role="tablist" aria-label="Case information">' +
+      '. Each activity date can be changed.</p></div><div class="detail-tabs tabs" role="tablist" aria-label="Case Information">' +
       [
         ["activities", "Activities", c.tasks.length],
         ["notes", "Notes", c.notes.length],
@@ -704,7 +757,7 @@
         : detailTab === "notes"
           ? notesView(c)
           : evidenceView(c)) +
-      '</div></section><aside class="detail-sidebar"><section class="panel"><div class="section-heading"><h2>Case overview</h2>' +
+      '</div></section><aside class="detail-sidebar"><section class="panel"><div class="section-heading"><h2>Case Overview</h2>' +
       icon("folder") +
       '</div><div class="field"><label for="case-status">Status</label><select id="case-status">' +
       Object.entries(statusNames)
@@ -715,34 +768,36 @@
             '" ' +
             (v === c.status ? "selected" : "") +
             ">" +
-            (v === "open" ? "Open / pending" : l) +
+            l +
             "</option>",
         )
         .join("") +
-      '</select></div><dl class="info-grid"><div class="info-item"><dt>Final due date</dt><dd>' +
+      '</select></div><dl class="info-grid"><div class="info-item"><dt>Final Due Date</dt><dd>' +
       fmt(c.dueDate, true) +
-      '</dd></div><div class="info-item"><dt>Time remaining</dt><dd class="' +
+      '</dd></div><div class="info-item"><dt>Time Remaining</dt><dd class="' +
       (c.status === "completed" ? "" : dueClass(c.dueDate)) +
       '">' +
-      (c.status === "completed" ? "Case completed" : dueText(c.dueDate)) +
-      '</dd></div><div class="info-item"><dt>Planned start</dt><dd>' +
+      (c.status === "completed" ? "Case Completed" : dueText(c.dueDate)) +
+      '</dd></div><div class="info-item"><dt>Planned Start</dt><dd>' +
       fmt(M.addDays(c.dueDate, -34)) +
-      '</dd></div><div class="info-item"><dt>Activities complete</dt><dd>' +
+      '</dd></div><div class="info-item"><dt>Activities Complete</dt><dd>' +
       p.done +
       " of " +
       p.total +
+      '</dd></div><div class="info-item"><dt>Template</dt><dd>' +
+      esc(c.sourceTemplateName || "Default") +
       "</dd></div></dl>" +
       (c.startDate > M.addDays(c.dueDate, -34)
         ? '<div class="notice"><span>This case opened after the five-week plan starts. Review early activity dates for a shorter timeline.</span></div>'
         : "") +
-      '</section><section class="tip-card"><h3>Every case has its own pace.</h3><p>Add or remove activities, edit their dates, and mark optional activities as needed for this patient.</p>' +
-      button("add-task", icon("plus") + " Add activity", "secondary small") +
+      '</section><section class="tip-card"><h3>Every Case Has Its Own Pace.</h3><p>Add or remove activities, edit their dates, and mark optional activities as needed for this patient.</p>' +
+      button("add-task", icon("plus") + " Add Activity", "secondary small") +
       '</section><div class="case-updated">Last updated ' +
       stamp(c.updatedAt) +
       "</div>" +
       button(
         "delete-case",
-        icon("trash") + " Delete case",
+        icon("trash") + " Delete Case",
         "ghost small danger",
       ) +
       "</aside></div>"
@@ -751,7 +806,7 @@
   function tasksView(c) {
     return (
       '<div class="section-heading"><p class="muted small">Check off each activity as it is finished.</p>' +
-      button("add-task", icon("plus") + " Add activity", "secondary small") +
+      button("add-task", icon("plus") + " Add Activity", "secondary small") +
       "</div>" +
       [1, 2, 3, 4, 5]
         .map((w) => {
@@ -813,9 +868,9 @@
   }
   function notesView(c) {
     return (
-      '<section class="panel"><form id="note-form"><div class="field"><label for="note-text">Add a case note</label><textarea id="note-text" name="text" rows="4" maxlength="50000" placeholder="Updates, conversations, or something to remember…" required></textarea></div><div class="form-actions"><button class="button primary" type="submit">' +
+      '<section class="panel"><form id="note-form"><div class="field"><label for="note-text">Add a Case Note</label><textarea id="note-text" name="text" rows="4" maxlength="50000" placeholder="Updates, conversations, or something to remember…" required></textarea></div><div class="form-actions"><button class="button primary" type="submit">' +
       icon("plus") +
-      ' Add note</button></div></form></section><div class="note-list">' +
+      ' Add Note</button></div></form></section><div class="note-list">' +
       (c.notes.length
         ? c.notes
             .slice()
@@ -828,11 +883,11 @@
                 stamp(n.createdAt) +
                 '</span><div><button class="icon-button" data-action="edit-note" data-id="' +
                 esc(n.id) +
-                '" aria-label="Edit note">' +
+                '" aria-label="Edit Note">' +
                 icon("edit") +
                 '</button><button class="icon-button danger" data-action="delete-note" data-id="' +
                 esc(n.id) +
-                '" aria-label="Delete note">' +
+                '" aria-label="Delete Note">' +
                 icon("trash") +
                 '</button></div></div><p class="note-text">' +
                 esc(n.text) +
@@ -840,7 +895,7 @@
             )
             .join("")
         : empty(
-            "A place for the details",
+            "A Place for the Details",
             "Keep useful updates and context together with this case.",
           )) +
       "</div>"
@@ -848,11 +903,11 @@
   }
   function evidenceView(c) {
     return (
-      '<section class="panel"><div class="section-heading"><div><h2>Keep the evidence together</h2><p class="form-help">Upload a copy or save a reference to an existing document.</p></div></div><div class="evidence-actions">' +
-      button("upload", icon("upload") + " Upload files", "primary") +
+      '<section class="panel"><div class="section-heading"><div><h2>Keep the Evidence Together</h2><p class="form-help">Upload a copy or save a reference to an existing document.</p></div></div><div class="evidence-actions">' +
+      button("upload", icon("upload") + " Upload Files", "primary") +
       button(
         "add-reference",
-        icon("link") + " Add document reference",
+        icon("link") + " Add Document Reference",
         "secondary",
       ) +
       '</div><p class="form-help">Upload documents, scans, or photos. Up to 25 MB per file and 100 MB across the workspace. Backups include uploaded evidence; connected shared workspaces sync encrypted copies.</p><input type="file" id="evidence-files" multiple hidden></section><div class="attachment-list">' +
@@ -893,9 +948,9 @@
                     (a.kind === "file"
                       ? " Download"
                       : a.kind === "path"
-                        ? " Copy path"
+                        ? " Copy Path"
                         : a.kind === "paper"
-                          ? " Copy location"
+                          ? " Copy Location"
                           : " Open"),
                   "secondary small",
                   'data-id="' + esc(a.id) + '"',
@@ -910,7 +965,7 @@
             )
             .join("")
         : empty(
-            "The supporting details, in one place",
+            "The Supporting Details, in One Place",
             "Attach reports, rating scales, signed forms, or a reference to where they are saved.",
           )) +
       "</div>"
@@ -927,10 +982,10 @@
     }
     return (
       header(
-        "One step at a time",
-        "What’s coming up.",
+        "One Step at a Time",
+        "What’s Coming Up.",
         "Overdue activities and everything due in the next 7 days.",
-        button("new-case", icon("plus") + " New case", "primary"),
+        button("new-case", icon("plus") + " New Case", "primary"),
       ) +
       '<div class="upcoming-summary notice">' +
       icon("calendar") +
@@ -974,22 +1029,178 @@
             )
             .join("")
         : empty(
-            "You’re clear for the week",
+            "You’re Clear for the Week",
             "No unfinished activities are due in the next 7 days. Review your cases to see the rest of the plan.",
-            button("navigate", "View cases", "secondary", 'data-route="cases"'),
+            button("navigate", "View Cases", "secondary", 'data-route="cases"'),
           ))
     );
   }
+  function templateLibrary() {
+    return M.getTemplates(settings);
+  }
+  function selectedTemplate() {
+    const library = templateLibrary();
+    const chosen =
+      library.find((entry) => entry.id === selectedTemplateId) ||
+      library.find((entry) => entry.id === M.getDefaultTemplateId(settings)) ||
+      library[0];
+    selectedTemplateId = chosen.id;
+    return chosen;
+  }
+  async function saveTemplateLibrary(library) {
+    const { template: legacyTemplate, ...preferences } = settings;
+    const defaultId = M.getDefaultTemplateId({
+      ...preferences,
+      templates: library,
+    });
+    await saveSettings({
+      ...preferences,
+      templates: library,
+      defaultTemplateId: defaultId,
+    });
+  }
+  async function updateTemplateActivities(id, activities) {
+    const library = templateLibrary(),
+      index = library.findIndex((entry) => entry.id === id);
+    if (index < 0)
+      throw new Error("This template was removed on another device.");
+    library[index] = {
+      ...library[index],
+      activities,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveTemplateLibrary(library);
+  }
+  function templateMetadataModal(mode) {
+    const source = selectedTemplate(),
+      editing = mode === "edit",
+      copying = mode === "copy";
+    const proposed = editing
+      ? source.name
+      : copying
+        ? source.name + " Copy"
+        : "";
+    showModal(
+      editing ? "Edit Template" : copying ? "Copy Template" : "New Template",
+      '<div class="field"><label for="template-name">Template Name</label><input id="template-name" name="name" maxlength="100" required value="' +
+        esc(proposed) +
+        '" placeholder="e.g. Initial Assessment"></div><p class="form-help">' +
+        (copying
+          ? "Starts with a separate copy of every activity in " +
+            esc(source.name) +
+            "."
+          : editing
+            ? "Rename this template. Existing cases keep their own activities and original template name."
+            : "Start with a blank template, then add the activities you need.") +
+        "</p>",
+      '<button type="submit" class="button primary">' +
+        (editing
+          ? "Save Template"
+          : copying
+            ? "Create Copy"
+            : "Create Template") +
+        "</button>",
+      async (fd) => {
+        const name = fd.get("name").trim(),
+          library = templateLibrary();
+        if (!name) throw new Error("Enter a template name.");
+        if (
+          library.some(
+            (entry) =>
+              entry.id !== (editing ? source.id : null) &&
+              entry.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+          )
+        )
+          throw new Error(
+            "A template with this name already exists. Choose a different name.",
+          );
+        if (editing) {
+          const index = library.findIndex((entry) => entry.id === source.id);
+          if (index < 0)
+            throw new Error("This template was removed on another device.");
+          library[index] = {
+            ...library[index],
+            name,
+            updatedAt: new Date().toISOString(),
+          };
+          selectedTemplateId = source.id;
+        } else {
+          const fresh = copying
+            ? M.copyTemplate(source, name)
+            : M.newTemplate({ name });
+          library.push(fresh);
+          selectedTemplateId = fresh.id;
+        }
+        await saveTemplateLibrary(library);
+        closeModal();
+        render();
+        toast("Template saved.");
+      },
+    );
+  }
   function templates() {
-    const ts = settings.template || M.template();
+    const library = templateLibrary(),
+      selected = selectedTemplate(),
+      ts = selected.activities,
+      defaultTemplateId = M.getDefaultTemplateId(settings);
     return (
       header(
-        "A thoughtful starting point",
-        "Your activity template.",
-        "New cases start here. Existing cases keep their own activities and dates.",
-        button("template-add", icon("plus") + " Add activity", "primary"),
+        "A Thoughtful Starting Point",
+        "Activity Templates",
+        "Build a reusable starting point, then choose the right template for each new case.",
+        button("new-template", icon("plus") + " New Template", "primary"),
       ) +
-      '<div class="notice">' +
+      '<div class="template-library-layout"><aside class="panel template-library-panel"><div class="section-heading"><h2>Saved Templates</h2><span class="muted small">' +
+      library.length +
+      '</span></div><div class="template-library-list" role="group" aria-label="Saved Templates">' +
+      library
+        .map(
+          (entry) =>
+            '<button type="button" class="template-library-item' +
+            (entry.id === selected.id ? " active" : "") +
+            '" data-action="select-template" data-id="' +
+            esc(entry.id) +
+            '" aria-label="Select Template: ' +
+            esc(entry.name) +
+            '"' +
+            (entry.id === selected.id
+              ? ' aria-pressed="true"'
+              : ' aria-pressed="false"') +
+            '><span class="template-library-icon">' +
+            icon("file") +
+            "</span><span><strong>" +
+            esc(entry.name) +
+            "</strong><small>" +
+            entry.activities.length +
+            (entry.activities.length === 1 ? " Activity" : " Activities") +
+            (entry.id === defaultTemplateId ? " · Default for New Cases" : "") +
+            "</small></span></button>",
+        )
+        .join("") +
+      '</div></aside><section class="template-editor"><div class="section-heading template-editor-heading"><div><h2>' +
+      esc(selected.name) +
+      '</h2><p class="form-help">Changes here apply to future cases. Existing cases keep their own plans.</p></div><div class="header-actions">' +
+      button(
+        "copy-template",
+        icon("file") + " Copy Template",
+        "secondary small",
+      ) +
+      (selected.id === "default"
+        ? ""
+        : button(
+            "edit-template",
+            icon("edit") + " Edit Template",
+            "secondary small",
+          )) +
+      (selected.id === "default"
+        ? ""
+        : button(
+            "delete-template",
+            icon("trash") + " Delete Template",
+            "danger small",
+          )) +
+      button("template-add", icon("plus") + " Add Activity", "primary small") +
+      '</div></div><div class="notice">' +
       icon("calendar") +
       '<span><strong>Five weeks, planned backward.</strong> Week 5 ends on the final deadline. Each earlier week ends 7 days before the next.</span></div><div class="template-grid">' +
       [1, 2, 3, 4, 5]
@@ -1023,7 +1234,7 @@
             "</div>" +
             button(
               "template-add",
-              "+ Add to week " + w,
+              "+ Add to Week " + w,
               "ghost small",
               'data-week="' + w + '"',
             ) +
@@ -1031,8 +1242,10 @@
         )
         .join("") +
       '</div><div class="form-actions">' +
-      button("reset-template", "Restore original template", "secondary") +
-      "</div>"
+      (selected.id === "default"
+        ? button("reset-template", "Restore Original Default", "secondary")
+        : "") +
+      "</div></section></div>"
     );
   }
   function reminderDefaults() {
@@ -1052,12 +1265,12 @@
     return (
       '<div class="demo-banner workspace-sync-banner"><span>' +
       icon("shield") +
-      " <strong>Shared workspace</strong> · " +
+      " <strong>Shared Workspace</strong> · " +
       (state.lastError
         ? esc(state.lastError)
         : "Encrypted sync is connected. Refresh to see changes from another device.") +
       '</span><div class="header-actions">' +
-      button("refresh-workspace", "Refresh shared workspace", "ghost small") +
+      button("refresh-workspace", "Refresh Shared Workspace", "ghost small") +
       button("lock-workspace", "Lock", "ghost small") +
       "</div></div>"
     );
@@ -1069,18 +1282,18 @@
     return (
       '<section class="panel reminder-connection"><div class="section-heading"><div><h2>' +
       icon("folder") +
-      ' Sync phone &amp; laptop</h2><p class="form-help">Use the same cases, notes, and evidence on both devices.</p></div><span class="badge ' +
+      ' Sync Phone &amp; Laptop</h2><p class="form-help">Use the same cases, notes, and evidence on both devices.</p></div><span class="badge ' +
       (connected ? "completed" : "open") +
       '">' +
-      (connected ? "Shared workspace connected" : "Optional setup") +
+      (connected ? "Shared Workspace Connected" : "Optional Setup") +
       '</span></div><p class="form-help">A shared workspace stores an encrypted copy of your records. Each device needs the service address, sign-in details, and your encryption passphrase. Connected workspaces require a connection to save changes.</p>' +
       (connected
         ? '<p class="mono cloud-service-url">' +
           esc(connection.url) +
           '</p><p class="form-help">' +
           (connection.authType === "google"
-            ? "Google sign-in"
-            : "Private access key") +
+            ? "Google Sign-In"
+            : "Private Access Key") +
           " · Encrypted version " +
           state.version +
           (state.updatedAt
@@ -1095,7 +1308,7 @@
       (connected
         ? button(
             "refresh-workspace",
-            "Refresh shared workspace",
+            "Refresh Shared Workspace",
             "secondary small",
           ) +
           (connection.authType === "google"
@@ -1103,15 +1316,15 @@
             : "") +
           button(
             "disconnect-workspace",
-            "Disconnect this browser",
+            "Disconnect This Browser",
             "ghost small",
           )
         : button(
             "connect-workspace",
-            "Connect shared workspace",
+            "Connect Shared Workspace",
             "secondary",
           )) +
-      '<a class="subtle-link" href="https://github.com/Praujekt/karen-scrum#readme" target="_blank" rel="noreferrer">Shared workspace setup ' +
+      '<a class="subtle-link" href="https://github.com/Praujekt/karen-scrum#readme" target="_blank" rel="noreferrer">Shared Workspace Setup ' +
       icon("external") +
       "</a></div>" +
       (!connected
@@ -1123,7 +1336,7 @@
   function workspaceModal(unlocking) {
     const connection = sync.getConnection();
     showModal(
-      unlocking ? "Unlock shared workspace" : "Connect shared workspace",
+      unlocking ? "Unlock Shared Workspace" : "Connect Shared Workspace",
       (unlocking
         ? '<p class="mono cloud-service-url">' +
           esc(connection.url) +
@@ -1136,15 +1349,15 @@
           cases.length +
           " cases on this device. Download a backup first if you need to keep them.</span></div>" +
           '<div class="form-actions">' +
-          button("backup", "Download backup", "secondary small") +
+          button("backup", "Download Backup", "secondary small") +
           "</div>" +
           '<div class="field"><label for="workspace-url">Workspace URL</label><input id="workspace-url" type="url" name="url" required placeholder="https://your-workspace.workers.dev" autocomplete="off"></div>' +
-          '<div class="field"><label for="workspace-auth">Sign-in method</label><select id="workspace-auth" name="authType"><option value="key">Private access key</option><option value="google">Google sign-in</option></select></div>' +
-          '<div class="field" id="workspace-key-field"><label for="workspace-key">Workspace access key</label><input id="workspace-key" name="token" type="password" required minlength="32" maxlength="512" autocomplete="off"></div>' +
-          '<div class="field" id="workspace-google-field" hidden><label for="workspace-client-id">Google client ID</label><input id="workspace-client-id" name="clientId" autocomplete="off"><p class="form-help">Use the OAuth client configured for your deployed workspace service.</p></div>') +
-        '<div class="field"><label for="workspace-passphrase">Encryption passphrase</label><input id="workspace-passphrase" name="passphrase" type="password" required minlength="12" maxlength="1024" autocomplete="off"><p class="form-help">At least 12 characters. Use the same passphrase on each device; it cannot be recovered by the service.</p></div>',
+          '<div class="field"><label for="workspace-auth">Sign-In Method</label><select id="workspace-auth" name="authType"><option value="key">Private Access Key</option><option value="google">Google Sign-In</option></select></div>' +
+          '<div class="field" id="workspace-key-field"><label for="workspace-key">Workspace Access Key</label><input id="workspace-key" name="token" type="password" required minlength="32" maxlength="512" autocomplete="off"></div>' +
+          '<div class="field" id="workspace-google-field" hidden><label for="workspace-client-id">Google Client ID</label><input id="workspace-client-id" name="clientId" autocomplete="off"><p class="form-help">Use the OAuth client configured for your deployed workspace service.</p></div>') +
+        '<div class="field"><label for="workspace-passphrase">Encryption Passphrase</label><input id="workspace-passphrase" name="passphrase" type="password" required minlength="12" maxlength="1024" autocomplete="off"><p class="form-help">At least 12 characters. Use the same passphrase on each device; it cannot be recovered by the service.</p></div>',
       '<button type="submit" class="button primary">' +
-        (unlocking ? "Unlock workspace" : "Connect workspace") +
+        (unlocking ? "Unlock Workspace" : "Connect Workspace") +
         "</button>",
       async (fd) => {
         if (unlocking) {
@@ -1226,7 +1439,7 @@
     return (
       '<section class="panel reminder-connection"><div class="section-heading"><div><h2>' +
       icon("shield") +
-      (cloud ? " Cloud reminders" : "Reminders, even when the laptop is off") +
+      (cloud ? " Cloud Reminders" : "Reminders, Even When the Laptop Is Off") +
       '</h2><p class="form-help">' +
       (cloud
         ? "The cloud service runs the schedule. Your laptop can be off."
@@ -1236,7 +1449,7 @@
         ? '<span class="badge ' +
           (reminderError ? "soon" : "completed") +
           '">' +
-          (reminderError ? "Needs attention" : "Cloud connected") +
+          (reminderError ? "Needs Attention" : "Cloud Connected") +
           "</span>"
         : "") +
       "</div>" +
@@ -1251,23 +1464,23 @@
         : "") +
       '<div class="form-actions">' +
       (cloud
-        ? button("retry-reminders", "Retry connection", "secondary small") +
+        ? button("retry-reminders", "Retry Connection", "secondary small") +
           (reminderError && !R.usesWorkspace()
             ? button(
                 "connect-cloud",
-                "Update cloud connection",
+                "Update Cloud Connection",
                 "secondary small",
               )
             : "") +
           (!R.usesWorkspace()
             ? button(
                 "disconnect-cloud",
-                "Disconnect cloud reminders",
+                "Disconnect Cloud Reminders",
                 "ghost small",
               )
             : '<span class="form-help">Uses your shared workspace connection. Disable delivery below to pause reminders.</span>')
-        : button("connect-cloud", "Connect cloud reminders", "secondary")) +
-      '<a class="subtle-link" href="cloud-setup.html" target="_blank" rel="noreferrer">Cloud setup guide ' +
+        : button("connect-cloud", "Connect Cloud Reminders", "secondary")) +
+      '<a class="subtle-link" href="cloud-setup.html" target="_blank" rel="noreferrer">Cloud Setup Guide ' +
       icon("external") +
       "</a>" +
       "</div>" +
@@ -1283,11 +1496,11 @@
         "Your shared workspace already provides the reminder connection.",
       );
     showModal(
-      "Connect cloud reminders",
+      "Connect Cloud Reminders",
       '<p class="form-help">Use the HTTPS service URL and connection token from your Cloudflare reminder service. This does not upload patient records.</p>' +
         '<div class="field"><label for="cloud-url">Service URL</label><input id="cloud-url" name="url" type="url" required autocomplete="off" placeholder="https://your-reminders.workers.dev"></div>' +
-        '<div class="field"><label for="cloud-token">Connection token</label><input id="cloud-token" name="token" type="password" required minlength="32" maxlength="512" autocomplete="off" spellcheck="false"><p class="form-help">Stored separately in this browser, excluded from case backups. Keep your original token somewhere secure.</p></div>',
-      '<button type="submit" class="button primary">Connect service</button>',
+        '<div class="field"><label for="cloud-token">Connection Token</label><input id="cloud-token" name="token" type="password" required minlength="32" maxlength="512" autocomplete="off" spellcheck="false"><p class="form-help">Stored separately in this browser, excluded from case backups. Keep your original token somewhere secure.</p></div>',
+      '<button type="submit" class="button primary">Connect Service</button>',
       async (fd) => {
         const candidate = R.validate(fd.get("url"), fd.get("token"));
         if (
@@ -1371,19 +1584,19 @@
       enabled = (reminder && reminder.configured) || {};
     return (
       header(
-        "Make room for peace of mind",
-        "A little help remembering.",
+        "Make Room for Peace of Mind",
+        "A Little Help Remembering.",
         "Choose how reminders fit your day, and keep a copy of your work.",
       ) +
       workspaceConnectionPanel() +
       reminderConnectionPanel() +
       '<div class="settings-grid"><section class="panel"><div class="section-heading"><div><h2>' +
       icon("bell") +
-      ' Deadline reminders</h2><p class="form-help">A daily digest of task and case deadlines approaching.</p></div><span class="badge ' +
+      ' Deadline Reminders</h2><p class="form-help">A daily digest of task and case deadlines approaching.</p></div><span class="badge ' +
       (config.enabled ? "in-progress" : "open") +
       '">' +
       (!reminder && R.hasCloud()
-        ? "Status unavailable"
+        ? "Status Unavailable"
         : config.enabled
           ? "Enabled"
           : "Off") +
@@ -1394,12 +1607,12 @@
           (R.hasCloud()
             ? "<span>The cloud schedule could not be read. It may still be active. Retry the connection to review its settings and sync the latest dates.</span></div>"
             : R.canUseLocal()
-              ? "<span>Start Weekwise with <strong>Start Weekwise.cmd</strong> to use local reminders, or connect a cloud service above.</span></div>"
+              ? "<span>Start Karen’s Load with <strong>Start Karens Load.cmd</strong> to use local reminders, or connect a cloud service above.</span></div>"
               : "<span>Connect the optional cloud service above to enable reminders. Your cases can be used without it.</span></div>")
         : "") +
       '<form id="reminder-form"><div class="field"><label class="checkbox-label"><input type="checkbox" name="enabled" ' +
       (config.enabled ? "checked" : "") +
-      '> Enable daily reminders</label></div><div class="form-grid"><div class="field"><label for="days-ahead">Remind me before deadlines</label><select id="days-ahead" name="daysAhead">' +
+      '> Enable Daily Reminders</label></div><div class="form-grid"><div class="field"><label for="days-ahead">Remind Me Before Deadlines</label><select id="days-ahead" name="daysAhead">' +
       [1, 2, 3, 5, 7, 14]
         .map(
           (n) =>
@@ -1409,47 +1622,45 @@
             (config.daysAhead === n ? "selected" : "") +
             ">" +
             n +
-            " day" +
+            " Day" +
             (n === 1 ? "" : "s") +
-            " ahead</option>",
+            " Ahead</option>",
         )
         .join("") +
-      '</select></div><div class="field"><label for="reminder-time">Daily send time</label><input id="reminder-time" name="time" type="time" required value="' +
+      '</select></div><div class="field"><label for="reminder-time">Daily Send Time</label><input id="reminder-time" name="time" type="time" required value="' +
       esc(config.time) +
       '"><span class="form-help">' +
-      (R.hasCloud()
-        ? "Cloud schedule uses " + esc(R.currentTimeZone()) + " when saved."
-        : "Uses this laptop’s local time.") +
+      "Uses Pacific Time (PST/PDT), with daylight-saving changes handled automatically." +
       '</span></div></div><label class="checkbox-label"><input type="checkbox" name="includeOverdue" ' +
       (config.includeOverdue ? "checked" : "") +
-      '> Include overdue work</label><hr><div class="field"><label class="checkbox-label"><input type="checkbox" name="channelEmail" ' +
+      '> Include Overdue Work</label><hr><div class="field"><label class="checkbox-label"><input type="checkbox" name="channelEmail" ' +
       (config.channels.includes("email") ? "checked" : "") +
-      '> Email reminders <span class="badge ' +
+      '> Email Reminders <span class="badge ' +
       (enabled.email ? "completed" : "open") +
       '">' +
-      (enabled.email ? "Connected" : "Setup needed") +
-      '</span></label><label for="reminder-email" class="sr-only">Reminder email address</label><input id="reminder-email" type="email" name="email" maxlength="254" placeholder="Her email address" value="' +
+      (enabled.email ? "Connected" : "Setup Needed") +
+      '</span></label><label for="reminder-email" class="sr-only">Reminder Email Address</label><input id="reminder-email" type="email" name="email" maxlength="254" placeholder="Her email address" value="' +
       esc(config.email) +
       '"></div><div class="field"><label class="checkbox-label"><input type="checkbox" name="channelSms" ' +
       (config.channels.includes("sms") ? "checked" : "") +
-      '> SMS reminders <span class="badge ' +
+      '> SMS Reminders <span class="badge ' +
       (enabled.sms ? "completed" : "open") +
       '">' +
-      (enabled.sms ? "Connected" : "Setup needed") +
-      '</span></label><label for="reminder-phone" class="sr-only">Reminder phone number</label><input id="reminder-phone" type="tel" name="phone" maxlength="20" placeholder="+15551234567" value="' +
+      (enabled.sms ? "Connected" : "Setup Needed") +
+      '</span></label><label for="reminder-phone" class="sr-only">Reminder Phone Number</label><input id="reminder-phone" type="tel" name="phone" maxlength="20" placeholder="+15551234567" value="' +
       esc(config.phone) +
       '"><span class="form-help">Include the country code. Provider charges may apply.</span></div><p class="form-help reminder-privacy">' +
       icon("shield") +
       ' Messages contain counts and dates only. Patient names, notes, and evidence are never included.</p><div id="reminder-error" class="form-error" role="alert" hidden></div><div class="form-actions"><button type="submit" class="button primary" ' +
       (!reminder ? "disabled" : "") +
-      ">Save reminders</button>" +
+      ">Save Reminders</button>" +
       button(
         "test-reminder",
-        "Send test reminder",
+        "Send Test Reminder",
         "secondary",
         !reminder ? "disabled" : "",
       ) +
-      '</div></form><details class="setup-details"><summary>Connect email or SMS</summary><p>Email uses <a href="https://resend.com/docs/introduction" target="_blank" rel="noreferrer">Resend</a>; SMS uses <a href="https://www.twilio.com/docs/messaging" target="_blank" rel="noreferrer">Twilio</a>. A cloud service runs the schedule while the laptop is off. <a href="cloud-setup.html" target="_blank" rel="noreferrer">Read the cloud setup guide</a>.</p><p>Local reminders are also available with Start Weekwise.cmd and provider credentials in the local .env file. Local delivery requires the laptop awake, online, and the service running.</p></details><div class="backup-status">' +
+      '</div></form><details class="setup-details"><summary>Connect Email or SMS</summary><p>Email uses <a href="https://resend.com/docs/introduction" target="_blank" rel="noreferrer">Resend</a>; SMS uses <a href="https://www.twilio.com/docs/messaging" target="_blank" rel="noreferrer">Twilio</a>. A cloud service runs the schedule while the laptop is off. <a href="cloud-setup.html" target="_blank" rel="noreferrer">Read the Cloud Setup Guide</a>.</p><p>Local reminders are also available with Start Karens Load.cmd and provider credentials in the local .env file. Local delivery requires the laptop awake, online, and the service running.</p></details><div class="backup-status">' +
       (reminder && Object.keys(reminder.lastSent || {}).length
         ? Object.entries(reminder.lastSent)
             .map(
@@ -1476,17 +1687,17 @@
         : "") +
       '</div></section><div><section class="panel"><div class="section-heading"><h2>' +
       icon("download") +
-      ' Backup & restore</h2></div><p class="muted">Download all cases, notes, your template, and uploaded evidence in one portable backup.</p><div class="backup-buttons">' +
-      button("backup", icon("download") + " Download backup", "primary") +
-      button("restore", icon("upload") + " Restore backup", "secondary") +
+      ' Backup & Restore</h2></div><p class="muted">Download all cases, notes, your template, and uploaded evidence in one portable backup.</p><div class="backup-buttons">' +
+      button("backup", icon("download") + " Download Backup", "primary") +
+      button("restore", icon("upload") + " Restore Backup", "secondary") +
       '</div><p class="form-help">Backups contain patient information and are not encrypted. Store them in an approved, secure location. Provider credentials are excluded.</p><p class="backup-status">' +
       (settings.lastBackup
         ? "Last backup downloaded " + stamp(settings.lastBackup)
         : "No backup downloaded yet.") +
       '</p></section><section class="tip-card"><h3>' +
       icon("shield") +
-      ' Your workspace, your records.</h3><p>Each browser keeps a local copy. A connected shared workspace also stores encrypted copies for your other devices. Clearing browser data removes this device’s copy.</p><p>Reminder services receive only counts, dates, and delivery preferences. Connection credentials are stored separately and excluded from case backups.</p><p>Use your organization’s approved device and storage practices for patient records.</p></section><section class="panel danger-zone"><h3>Workspace data</h3><p class="form-help">Remove cases, uploaded copies, and the custom template. When shared sync is connected, clearing also updates the shared workspace.</p>' +
-      button("clear-all", "Clear workspace…", "danger small") +
+      ' Your Workspace, Your Records.</h3><p>Each browser keeps a local copy. A connected shared workspace also stores encrypted copies for your other devices. Clearing browser data removes this device’s copy.</p><p>Reminder services receive only counts, dates, and delivery preferences. Connection credentials are stored separately and excluded from case backups.</p><p>Use your organization’s approved device and storage practices for patient records.</p></section><section class="panel danger-zone"><h3>Workspace Data</h3><p class="form-help">Remove cases, uploaded copies, and the custom template. When shared sync is connected, clearing also updates the shared workspace.</p>' +
+      button("clear-all", "Clear Workspace…", "danger small") +
       "</section></div></div>"
     );
   }
@@ -1509,14 +1720,14 @@
     modal.innerHTML =
       '<form id="modal-form"><div class="modal-header"><h2 id="modal-title">' +
       title +
-      '</h2><button type="button" class="icon-button" data-action="close-modal" aria-label="Close dialog">' +
+      '</h2><button type="button" class="icon-button" data-action="close-modal" aria-label="Close Dialog">' +
       icon("close") +
       '</button></div><div class="modal-body">' +
       body +
       '<div id="modal-error" class="form-error" role="alert" hidden></div></div><div class="modal-footer">' +
       button("close-modal", "Cancel", "secondary") +
       (footer ||
-        '<button type="submit" class="button primary">Save changes</button>') +
+        '<button type="submit" class="button primary">Save Changes</button>') +
       "</div></form>";
     modalAction = handler;
     modal.showModal();
@@ -1546,21 +1757,40 @@
   function caseModal(editing) {
     const c = editing ? currentCase() : null,
       start = c ? c.startDate : M.today(),
-      due = c ? c.dueDate : M.addDays(start, 34);
+      due = c ? c.dueDate : M.addDays(start, 34),
+      library = templateLibrary(),
+      defaultTemplateId = M.getDefaultTemplateId(settings);
     showModal(
-      editing ? "Edit case" : "A new case, a clear plan",
-      '<div class="field"><label for="patient-name">Patient name <span class="required">*</span></label><input id="patient-name" name="name" maxlength="200" required autocomplete="off" value="' +
+      editing ? "Edit Case" : "A New Case, a Clear Plan",
+      '<div class="field"><label for="patient-name">Patient Name <span class="required">*</span></label><input id="patient-name" name="name" maxlength="200" required autocomplete="off" value="' +
         esc(c ? c.name : "") +
-        '" placeholder="First and last name"></div><div class="form-grid"><div class="field"><label for="case-opened">Case opened</label><input id="case-opened" name="startDate" type="date" required value="' +
+        '" placeholder="First and last name"></div>' +
+        (editing
+          ? ""
+          : '<div class="field"><label for="case-template">Template</label><select id="case-template" name="templateId">' +
+            library
+              .map(
+                (entry) =>
+                  '<option value="' +
+                  esc(entry.id) +
+                  '"' +
+                  (entry.id === defaultTemplateId ? " selected" : "") +
+                  ">" +
+                  esc(entry.name) +
+                  "</option>",
+              )
+              .join("") +
+            '</select><p class="form-help">This case gets its own copy. Changing its activities will not change the saved template.</p></div>') +
+        '<div class="form-grid"><div class="field"><label for="case-opened">Case Opened</label><input id="case-opened" name="startDate" type="date" required value="' +
         start +
-        '"></div><div class="field"><label for="final-due">Final due date <span class="required">*</span></label><input id="final-due" name="dueDate" type="date" required value="' +
+        '"></div><div class="field"><label for="final-due">Final Due Date <span class="required">*</span></label><input id="final-due" name="dueDate" type="date" required value="' +
         due +
         '"></div></div><div class="schedule-preview" id="schedule-preview"></div>' +
         (editing
-          ? '<div class="field"><label class="checkbox-label"><input type="checkbox" name="shift" checked> Shift activity dates when the deadline changes</label><p class="form-help">Moves every activity by the same number of days, preserving custom spacing.</p></div>'
-          : '<div class="field"><label for="initial-note">Initial note <span class="muted">(optional)</span></label><textarea id="initial-note" name="notes" maxlength="50000" rows="3" placeholder="Anything useful to know about this case…"></textarea></div><p class="form-help">Starts with your five-week activity template. You can customize everything afterward.</p>'),
+          ? '<div class="field"><label class="checkbox-label"><input type="checkbox" name="shift" checked> Shift Activity Dates When the Deadline Changes</label><p class="form-help">Moves every activity by the same number of days, preserving custom spacing.</p></div>'
+          : '<div class="field"><label for="initial-note">Initial Note <span class="muted">(optional)</span></label><textarea id="initial-note" name="notes" maxlength="50000" rows="3" placeholder="Anything useful to know about this case…"></textarea></div><p class="form-help">Weekly dates work backward from the final deadline. Every activity can be customized for this case.</p>'),
       '<button type="submit" class="button primary">' +
-        (editing ? "Save case" : "Create case") +
+        (editing ? "Save Case" : "Create Case") +
         "</button>",
       async (fd) => {
         if (editing) {
@@ -1585,12 +1815,21 @@
           render();
           toast("Case updated.");
         } else {
+          const chosen = templateLibrary().find(
+            (entry) => entry.id === fd.get("templateId"),
+          );
+          if (!chosen)
+            throw new Error(
+              "This template is no longer available. Reopen the new case form and choose another template.",
+            );
           const fresh = M.createCase({
             name: fd.get("name"),
             startDate: fd.get("startDate"),
             dueDate: fd.get("dueDate"),
             notes: fd.get("notes"),
-            template: settings.template || M.template(),
+            template: chosen.activities,
+            templateId: chosen.id,
+            templateName: chosen.name,
           });
           await saveCase(fresh);
           closeModal();
@@ -1641,13 +1880,14 @@
   }
   function taskModal(id, template, week) {
     const c = template ? null : currentCase(),
-      ts = template ? settings.template || M.template() : c.tasks,
+      templateRecord = template ? selectedTemplate() : null,
+      ts = template ? templateRecord.activities : c.tasks,
       old = id ? ts.find((t) => t.id === id) : null;
     showModal(
-      old ? "Edit activity" : "Add an activity",
-      '<div class="field"><label for="activity-title">Activity name</label><input id="activity-title" name="title" maxlength="500" required value="' +
+      old ? "Edit Activity" : "Add an Activity",
+      '<div class="field"><label for="activity-title">Activity Name</label><input id="activity-title" name="title" maxlength="500" required value="' +
         esc(old ? old.title : "") +
-        '"></div><div class="form-grid"><div class="field"><label for="activity-week">Plan week</label><select id="activity-week" name="week">' +
+        '"></div><div class="form-grid"><div class="field"><label for="activity-week">Plan Week</label><select id="activity-week" name="week">' +
         [1, 2, 3, 4, 5]
           .map(
             (w) =>
@@ -1662,26 +1902,26 @@
           .join("") +
         "</select></div>" +
         (!template
-          ? '<div class="field"><label for="activity-due">Activity due date</label><input id="activity-due" type="date" name="dueDate" required value="' +
+          ? '<div class="field"><label for="activity-due">Activity Due Date</label><input id="activity-due" type="date" name="dueDate" required value="' +
             (old ? old.dueDate : M.taskDue(c.startDate, c.dueDate, week || 1)) +
             '"></div>'
           : "") +
         '</div><label class="checkbox-label"><input type="checkbox" name="optional" ' +
         (old && old.optional ? "checked" : "") +
-        "> Optional / if necessary</label>" +
+        "> Optional / if Necessary</label>" +
         (!template
           ? '<p class="form-help">Set a date that fits this case. It can differ from the weekly target.</p>'
           : ""),
       (old
         ? button(
             template ? "template-delete" : "delete-task",
-            icon("trash") + " Remove activity",
+            icon("trash") + " Remove Activity",
             "danger small",
             'data-id="' + esc(old.id) + '"',
           )
         : "") +
         '<button type="submit" class="button primary">' +
-        (old ? "Save activity" : "Add activity") +
+        (old ? "Save Activity" : "Add Activity") +
         "</button>",
       async (fd) => {
         const t = {
@@ -1692,7 +1932,12 @@
         };
         if (!t.title) throw new Error("Enter an activity name.");
         if (template) {
-          const updated = structuredClone(settings.template || M.template());
+          const latestTemplate = templateLibrary().find(
+            (entry) => entry.id === templateRecord.id,
+          );
+          if (!latestTemplate)
+            throw new Error("This template was removed on another device.");
+          const updated = latestTemplate.activities;
           if (old) {
             const index = updated.findIndex((x) => x.id === old.id);
             if (index < 0)
@@ -1701,7 +1946,7 @@
               );
             updated[index] = t;
           } else updated.push(t);
-          await saveSettings({ ...settings, template: updated });
+          await updateTemplateActivities(templateRecord.id, updated);
         } else {
           const latest = cases.find((record) => record.id === c.id);
           if (!latest)
@@ -1796,7 +2041,7 @@
     const data = await DB.exportBackup();
     download(
       new Blob([JSON.stringify(data)], { type: "application/json" }),
-      "weekwise-backup-" + M.today() + ".json",
+      "karens-load-backup-" + M.today() + ".json",
     );
     if (!sync.isConnected())
       await saveSettings({ ...settings, lastBackup: new Date().toISOString() });
@@ -1811,13 +2056,17 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
-  function navigate(next) {
+  function navigate(next, selectedFilter) {
     route = next;
     query = "";
     if (next === "overview") filter = "active";
-    if (next === "cases" && filter === "active") filter = "all";
+    if (next === "cases") filter = selectedFilter || "all";
     window.location.hash =
-      next === "case" ? "case/" + encodeURIComponent(selectedId) : next;
+      next === "case"
+        ? "case/" + encodeURIComponent(selectedId)
+        : next === "cases"
+          ? caseFilterPaths[filter] || "cases"
+          : next;
     render();
     window.scrollTo(0, 0);
   }
@@ -1833,22 +2082,30 @@
           ? "Sample submission checklist.txt"
           : "Sample assessment evidence.txt";
       const text =
-        "WEEKWISE - FICTIONAL EXAMPLE ONLY\n\nPatient: " +
+        "KAREN'S LOAD - FICTIONAL EXAMPLE ONLY\n\nPatient: " +
         record.name +
         "\nThis file demonstrates evidence uploads and downloads.\nIt is not a real patient record or clinical report.\n\n" +
         (index
           ? "Example: report finalized; sections uploaded; paperwork submitted.\n"
-          : "Example: teacher materials received; parent interview scheduled; remaining activities tracked in Weekwise.\n") +
+          : "Example: teacher materials received; parent interview scheduled; remaining activities tracked in Karen's Load.\n") +
         "\nYou can remove this sample safely using Remove examples.\n";
+      const encodedText = new TextEncoder().encode(text);
       record.attachments.push({
         id: M.uid(),
         name,
         kind: "file",
         fileId: id,
-        size: text.length,
+        size: encodedText.byteLength,
         createdAt: new Date().toISOString(),
       });
-      return { id, name, type: "text/plain", data: btoa(text) };
+      return {
+        id,
+        name,
+        type: "text/plain",
+        data: btoa(
+          Array.from(encodedText, (byte) => String.fromCharCode(byte)).join(""),
+        ),
+      };
     });
     demonstration.attachments.push({
       id: M.uid(),
@@ -1928,9 +2185,9 @@
   }
   function referenceModal() {
     showModal(
-      "Add a document reference",
-      '<div class="field"><label for="reference-name">Document name</label><input id="reference-name" name="name" maxlength="500" required placeholder="e.g. Signed assessment plan"></div><div class="field"><label for="reference-kind">Reference type</label><select id="reference-kind" name="kind"><option value="path">File on this laptop</option><option value="paper">Paper document location</option><option value="drive">Google Drive or Docs</option><option value="link">Other web document link</option></select></div><div class="field"><label for="reference-value">File path or document URL</label><input id="reference-value" name="value" maxlength="4000" required placeholder="File path, paper filing location, or document URL"><p class="form-help">For paper, record where it is filed. Local references save a location, not a copy; use Copy path in File Explorer. Google Drive and Docs links open in your signed-in browser; files are not uploaded here.</p></div>',
-      '<button type="submit" class="button primary">Add reference</button>',
+      "Add a Document Reference",
+      '<div class="field"><label for="reference-name">Document Name</label><input id="reference-name" name="name" maxlength="500" required placeholder="e.g. Signed assessment plan"></div><div class="field"><label for="reference-kind">Reference Type</label><select id="reference-kind" name="kind"><option value="path">File on This Laptop</option><option value="paper">Paper Document Location</option><option value="drive">Google Drive or Docs</option><option value="link">Other Web Document Link</option></select></div><div class="field"><label for="reference-value">File Path or Document URL</label><input id="reference-value" name="value" maxlength="4000" required placeholder="File path, paper filing location, or document URL"><p class="form-help">For paper, record where it is filed. Local references save a location, not a copy; use Copy path in File Explorer. Google Drive and Docs links open in your signed-in browser; files are not uploaded here.</p></div>',
+      '<button type="submit" class="button primary">Add Reference</button>',
       async (fd) => {
         const kind = fd.get("kind"),
           value = fd.get("value").trim();
@@ -1975,6 +2232,40 @@
   }
   const actions = {
     navigate: (el) => navigate(el.dataset.route),
+    "case-status-filter": (el) => navigate("cases", el.dataset.filter),
+    "select-template": (el) => {
+      selectedTemplateId = el.dataset.id;
+      render();
+    },
+    "new-template": () => templateMetadataModal("new"),
+    "copy-template": () => templateMetadataModal("copy"),
+    "edit-template": () => templateMetadataModal("edit"),
+    "delete-template": () => {
+      const chosen = selectedTemplate();
+      if (chosen.id === "default")
+        throw new Error(
+          "The shipped Default template is kept available. You can edit its activities or create a copy.",
+        );
+      confirmAction(
+        "Delete Template?",
+        "Delete <strong>" +
+          esc(chosen.name) +
+          "</strong> from the template library? Existing cases keep their own activities.",
+        "Delete Template",
+        async () => {
+          const library = templateLibrary().filter(
+            (entry) => entry.id !== chosen.id,
+          );
+          if (!library.length)
+            throw new Error("Keep at least one template in the library.");
+          await saveTemplateLibrary(library);
+          selectedTemplateId = M.getDefaultTemplateId(settings);
+          closeModal();
+          render();
+          toast("Template deleted.");
+        },
+      );
+    },
     "new-case": () => caseModal(false),
     "edit-case": () => caseModal(true),
     "close-modal": closeModal,
@@ -1983,13 +2274,7 @@
       detailTab = "activities";
       navigate("case");
     },
-    metric: (el) => {
-      filter = el.dataset.filter;
-      route = "cases";
-      query = "";
-      window.location.hash = "cases";
-      render();
-    },
+    metric: (el) => navigate("cases", el.dataset.filter),
     "detail-tab": (el) => {
       detailTab = el.dataset.tab;
       render();
@@ -1999,9 +2284,9 @@
     "delete-task": (el) => {
       const id = el.dataset.id;
       confirmAction(
-        "Remove this activity?",
+        "Remove This Activity?",
         "The activity and its completion mark will be removed from this case.",
-        "Remove activity",
+        "Remove Activity",
         async () => {
           const c = structuredClone(currentCase());
           c.tasks = c.tasks.filter((t) => t.id !== id);
@@ -2017,7 +2302,7 @@
       confirmAction(
         "Delete " + esc(c.name) + "?",
         "This removes the case, its notes, and all uploaded evidence from this browser. Download a backup first if you need a copy.",
-        "Delete case",
+        "Delete Case",
         async () => {
           await DB.deleteCase(c.id);
           cases = cases.filter((x) => x.id !== c.id);
@@ -2031,7 +2316,7 @@
     "edit-note": (el) => {
       const note = currentCase().notes.find((n) => n.id === el.dataset.id);
       showModal(
-        "Edit note",
+        "Edit Note",
         '<div class="field"><label for="edit-note-text">Note</label><textarea id="edit-note-text" name="text" maxlength="50000" rows="7" required>' +
           esc(note.text) +
           "</textarea></div>",
@@ -2051,9 +2336,9 @@
     "delete-note": (el) => {
       const id = el.dataset.id;
       confirmAction(
-        "Delete this note?",
+        "Delete This Note?",
         "This note will be removed from the case.",
-        "Delete note",
+        "Delete Note",
         async () => {
           const c = structuredClone(currentCase());
           c.notes = c.notes.filter((n) => n.id !== id);
@@ -2091,10 +2376,10 @@
         );
       } catch (_) {
         showModal(
-          "Document location",
+          "Document Location",
           '<div class="field"><label for="copy-location">' +
             (a.kind === "paper"
-              ? "Paper document location"
+              ? "Paper Document Location"
               : "Copy this path into File Explorer") +
             '</label><input id="copy-location" readonly value="' +
             esc(a.value) +
@@ -2109,9 +2394,9 @@
     "delete-attachment": (el) => {
       const id = el.dataset.id;
       confirmAction(
-        "Remove this evidence?",
+        "Remove This Evidence?",
         "This removes the saved copy or reference from the case. The original document is kept.",
-        "Remove evidence",
+        "Remove Evidence",
         async () => {
           const c = structuredClone(currentCase()),
             a = c.attachments.find((a) => a.id === id);
@@ -2127,18 +2412,22 @@
     "template-add": (el) => taskModal(null, true, Number(el.dataset.week) || 1),
     "template-edit": (el) => taskModal(el.dataset.id, true),
     "template-delete": (el) => {
-      const id = el.dataset.id;
+      const id = el.dataset.id,
+        templateId = selectedTemplate().id;
       confirmAction(
-        "Remove template activity?",
+        "Remove Template Activity?",
         "New cases will no longer include this activity. Existing cases keep their own plans.",
-        "Remove activity",
+        "Remove Activity",
         async () => {
-          await saveSettings({
-            ...settings,
-            template: (settings.template || M.template()).filter(
-              (t) => t.id !== id,
-            ),
-          });
+          const chosen = templateLibrary().find(
+            (entry) => entry.id === templateId,
+          );
+          if (!chosen)
+            throw new Error("This template was removed on another device.");
+          await updateTemplateActivities(
+            templateId,
+            chosen.activities.filter((t) => t.id !== id),
+          );
           closeModal();
           render();
         },
@@ -2146,11 +2435,11 @@
     },
     "reset-template": () =>
       confirmAction(
-        "Restore original template?",
-        "Replace the activity template with the original 19 activities. Existing cases keep their own plans.",
-        "Restore template",
+        "Restore Original Default?",
+        "Replace Default's activities with the original 19 activities. Other templates and existing cases keep their own plans.",
+        "Restore Template",
         async () => {
-          await saveSettings({ ...settings, template: M.template() });
+          await updateTemplateActivities("default", M.template());
           closeModal();
           render();
         },
@@ -2172,9 +2461,9 @@
     },
     "disconnect-workspace": () =>
       confirmAction(
-        "Disconnect this browser?",
+        "Disconnect This Browser?",
         "The local copy stays on this device and becomes a local workspace. Cloud records are kept. A separate cloud reminder schedule is unchanged.",
-        "Disconnect browser",
+        "Disconnect Browser",
         async () => {
           await sync.disconnect();
           await reloadWorkspace();
@@ -2196,9 +2485,9 @@
     "retry-reminders": refreshReminders,
     "disconnect-cloud": () =>
       confirmAction(
-        "Disconnect cloud reminders?",
+        "Disconnect Cloud Reminders?",
         "This first disables the cloud schedule, then removes the connection token from this browser. Cases and evidence stay here.",
-        "Disconnect service",
+        "Disconnect Service",
         async () => {
           await pauseReminders();
           R.clear();
@@ -2227,9 +2516,9 @@
     "load-demo": loadDemo,
     "clear-demo": () =>
       confirmAction(
-        "Remove example cases?",
+        "Remove Example Cases?",
         "Only the fictional example cases will be removed. Cases you added are kept.",
-        "Remove examples",
+        "Remove Examples",
         async () => {
           await clearDemo();
           closeModal();
@@ -2237,11 +2526,11 @@
       ),
     "clear-all": () =>
       confirmAction(
-        "Clear this workspace?",
+        "Clear This Workspace?",
         sync.isConnected()
           ? "All shared cases, notes, uploaded copies, and custom template settings will be removed from the cloud workspace and every connected device when it refreshes. Download a backup first. Connected reminders must be paused before clearing."
           : "All cases, notes, uploaded copies, and custom template settings will be permanently removed from this browser. Download a backup first. Connected reminders must be paused before clearing.",
-        "Clear everything",
+        "Clear Everything",
         async () => {
           await pauseReminders();
           await DB.clearAll();
@@ -2263,9 +2552,9 @@
       if (!reminder.config.channels.length)
         throw new Error("Choose a delivery channel and save reminders first.");
       confirmAction(
-        "Send a test reminder?",
+        "Send a Test Reminder?",
         "A generic test will be sent now to the recipient and channels in your saved reminder settings. No patient information is included.",
-        "Send test",
+        "Send Test",
         async () => {
           const result = await api("/api/reminders/test", "POST", {});
           reminder = result.status || reminder;
@@ -2298,6 +2587,8 @@
           "navigate",
           "open-case",
           "metric",
+          "case-status-filter",
+          "select-template",
           "detail-tab",
           "print",
           "copy-path",
@@ -2375,8 +2666,7 @@
       return;
     }
     if (el.id === "case-filter") {
-      filter = el.value;
-      render();
+      navigate("cases", el.value);
       return;
     }
     if (el.id === "activity-week" && modal.querySelector("[name=dueDate]")) {
@@ -2406,7 +2696,7 @@
         const data = JSON.parse(await file.text());
         DB.validateBackup(data);
         confirmAction(
-          "Replace workspace from backup?",
+          "Replace Workspace from Backup?",
           "Restore <strong>" +
             data.cases.length +
             " cases</strong> and " +
@@ -2416,7 +2706,7 @@
               ? "This replaces the shared workspace for every connected device when it refreshes. "
               : "This replaces the current workspace. ") +
             "Reminder connections stay separate and must be paused before restore.",
-          "Restore backup",
+          "Restore Backup",
           async () => {
             await pauseReminders();
             await DB.importBackup(data);
@@ -2432,7 +2722,7 @@
       } catch (error) {
         toast(
           error.message === "Unexpected token"
-            ? "Choose a valid Weekwise backup."
+            ? "Choose a valid Karen’s Load backup."
             : error.message,
           true,
         );
@@ -2446,9 +2736,9 @@
           const target = el.value;
           render();
           confirmAction(
-            "Complete this case?",
+            "Complete This Case?",
             "Some activities are still unchecked. Completing the case removes it from deadline reminders. You can reopen it later.",
-            "Complete case",
+            "Complete Case",
             async () => {
               const latest = structuredClone(currentCase());
               latest.status = target;
@@ -2599,11 +2889,20 @@
     if (hash.startsWith("case/")) {
       selectedId = hash.slice(5);
       route = "case";
+    } else if (hash === "cases" || hash.startsWith("cases/")) {
+      route = "cases";
+      filter =
+        hash === "cases/open"
+          ? "open"
+          : Object.keys(caseFilterPaths).find(
+              (value) => caseFilterPaths[value] === hash,
+            ) || "all";
     } else if (
       ["overview", "cases", "upcoming", "templates", "settings"].includes(hash)
-    )
+    ) {
       route = hash;
-    else route = "overview";
+      if (route === "overview") filter = "active";
+    } else route = "overview";
   }
   async function init() {
     try {
@@ -2612,6 +2911,9 @@
       if (!settings.initialized && !sync.isConnected()) {
         if (!cases.length) await loadDemo();
         else await saveSettings({ ...settings, initialized: true });
+      }
+      if (!Array.isArray(settings.templates) && !sync.isConnected()) {
+        await saveTemplateLibrary(templateLibrary());
       }
       readRoute();
       render();
@@ -2632,7 +2934,7 @@
         navigator.storage.persist().catch(() => {});
     } catch (error) {
       app.innerHTML =
-        '<main class="loading-screen"><h1>We couldn’t open your workspace.</h1><p>' +
+        '<main class="loading-screen"><h1>We Couldn’t Open Your Workspace.</h1><p>' +
         esc(error.message) +
         "</p><p>Use a regular browser window with local storage enabled, then reload.</p></main>";
     }
@@ -2647,7 +2949,7 @@
             app.innerHTML =
               '<main class="loading-screen"><div class="brand-mark">' +
               icon("folder") +
-              '</div><h1>Your workspace is already open.</h1><p>Keep one Weekwise tab open so every change stays in sync. Close the other tab, then reload this one.</p><button class="button primary" id="retry-workspace">Try again</button></main>';
+              '</div><h1>Your Workspace Is Already Open.</h1><p>Keep one Karen’s Load tab open so every change stays in sync. Close the other tab, then reload this one.</p><button class="button primary" id="retry-workspace">Try Again</button></main>';
             document.getElementById("retry-workspace").onclick = () =>
               window.location.reload();
             return;
@@ -2661,5 +2963,5 @@
       });
   } else
     app.innerHTML =
-      '<main class="loading-screen"><h1>This browser can’t safely open the workspace.</h1><p>Open Weekwise in an updated Chrome, Edge, or Firefox browser at its local address.</p></main>';
+      '<main class="loading-screen"><h1>This Browser Can’t Safely Open the Workspace.</h1><p>Open Karen’s Load in an updated Chrome, Edge, or Firefox browser at its local address.</p></main>';
 })();

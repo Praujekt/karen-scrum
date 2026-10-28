@@ -8,7 +8,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'"
     />
-    <title>Cloud reminders · Weekwise</title>
+    <title>Cloud Reminders · Karen's Load</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <style>
@@ -45,31 +45,31 @@
   </head>
   <body>
     <main class="guide">
-      <a class="subtle-link" href="./#settings">← Back to Weekwise</a>
+      <a class="subtle-link" href="./#settings">← Back to Karen's Load</a>
       <p class="eyebrow" style="margin-top: 30px">Optional delivery setup</p>
-      <h1>Reminders while the laptop is off.</h1>
+      <h1>Reminders While the Laptop Is Off.</h1>
       <p>
-        Weekwise can use a small Cloudflare service to run a daily reminder
+        Karen's Load can use a small Cloudflare service to run a daily reminder
         schedule independently of your laptop. A shared workspace can use the
         same service for encrypted records across your phone and laptop.
       </p>
       <div class="panel">
-        <h2 style="margin-top: 0">You can try the tracker first.</h2>
+        <h2 style="margin-top: 0">You Can Try the Tracker First.</h2>
         <p>
           Cases, weekly activities, notes, evidence, and backups work without
           cloud setup. Reminders stay off until you connect a service and enable
           a delivery channel.
         </p>
       </div>
-      <h2>What your developer sets up</h2>
+      <h2>What Your Developer Sets Up</h2>
       <ol>
         <li>
           Deploy the included <code>cloud-reminders</code> Worker and its D1
           database using the repository’s cloud reminder guide.
         </li>
         <li>
-          Set the allowed website origin to the address hosting Weekwise, and
-          create a private connection token.
+          Set the allowed website origin to the address hosting Karen's Load,
+          and create a private connection token.
         </li>
         <li>
           Add email or SMS provider credentials to Cloudflare secrets. Email
@@ -81,7 +81,7 @@
           credentials never belong in this website or its public source.
         </li>
       </ol>
-      <h2>Connect from Weekwise</h2>
+      <h2>Connect from Karen's Load</h2>
       <p>
         If you already connected a shared workspace, its sign-in also connects
         reminders. Use the delivery settings below it; no second token is
@@ -98,7 +98,8 @@
         </li>
         <li>
           Choose email or SMS, enter your recipient, and set the daily time and
-          deadline window. The screen shows the time zone used when saving.
+          deadline window. Send times use Pacific Time, with automatic PST/PDT
+          daylight-saving changes.
         </li>
         <li>
           Enable daily reminders and save. A test reminder is available after
@@ -107,11 +108,11 @@
       </ol>
       <p>
         Connecting cloud reminders pauses any active local reminder schedule.
-        The cloud uses the latest dates synced from this browser. Open Weekwise
-        and wait for synchronization after changing a case or restoring a
+        The cloud uses the latest dates synced from this browser. Open Karen's
+        Load and wait for synchronization after changing a case or restoring a
         backup.
       </p>
-      <h2>What leaves this browser</h2>
+      <h2>What Leaves This Browser</h2>
       <p>
         The service receives active-case counts, unfinished deadline dates, and
         your delivery preferences, including the recipient. Patient names,
@@ -125,12 +126,12 @@
         never saved. Connecting only reminders does not synchronize cases
         between devices.
       </p>
-      <h2>Pause or disconnect</h2>
+      <h2>Pause or Disconnect</h2>
       <p>
         Turn off daily reminders and save to pause delivery.
         <strong>Disconnect cloud reminders</strong> first disables the cloud
         schedule, then removes the saved connection token. If the service cannot
-        be reached, Weekwise keeps the connection so you can retry. Clearing
+        be reached, Karen's Load keeps the connection so you can retry. Clearing
         browser data alone does not stop a cloud schedule.
       </p>
       <p>
@@ -140,8 +141,8 @@
       </p>
       <p>
         Local reminders remain available through
-        <code>Start Weekwise.cmd</code>; those require the laptop awake, online,
-        and the local service running.
+        <code>Start Karens Load.cmd</code>; those require the laptop awake,
+        online, and the local service running.
       </p>
     </main>
   </body>

@@ -6,6 +6,9 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 
 const require = createRequire(import.meta.url);
+const browserExecutable =
+  process.env.KARENS_LOAD_BROWSER_EXECUTABLE ||
+  process.env.WEEKWISE_BROWSER_EXECUTABLE;
 let chromium;
 try {
   ({ chromium } = require("playwright"));
@@ -43,9 +46,9 @@ test(
       await new Promise((resolve) => server.close(resolve));
     });
     browser = await chromium.launch(
-      process.env.WEEKWISE_BROWSER_EXECUTABLE
+      browserExecutable
         ? {
-            executablePath: process.env.WEEKWISE_BROWSER_EXECUTABLE,
+            executablePath: browserExecutable,
             headless: true,
           }
         : { channel: "chrome", headless: true },
@@ -109,16 +112,28 @@ test(
     // the host-root database retains its original name and records.
     await page.evaluate(() => WWStore.saveSettings({ namespace: "root" }));
     const projectA = await context.newPage();
-    await projectA.goto('http://127.0.0.1:' + server.address().port + '/project-a/');
+    await projectA.goto(
+      "http://127.0.0.1:" + server.address().port + "/project-a/",
+    );
     assert.deepEqual(await projectA.evaluate(() => WWStore.getSettings()), {});
-    await projectA.evaluate(() => WWStore.saveSettings({ namespace: "project-a" }));
+    await projectA.evaluate(() =>
+      WWStore.saveSettings({ namespace: "project-a" }),
+    );
     const projectB = await context.newPage();
-    await projectB.goto('http://127.0.0.1:' + server.address().port + '/project-b/');
+    await projectB.goto(
+      "http://127.0.0.1:" + server.address().port + "/project-b/",
+    );
     assert.deepEqual(await projectB.evaluate(() => WWStore.getSettings()), {});
-    await projectB.evaluate(() => WWStore.saveSettings({ namespace: "project-b" }));
+    await projectB.evaluate(() =>
+      WWStore.saveSettings({ namespace: "project-b" }),
+    );
     await page.reload();
-    assert.deepEqual(await page.evaluate(() => WWStore.getSettings()), { namespace: "root" });
+    assert.deepEqual(await page.evaluate(() => WWStore.getSettings()), {
+      namespace: "root",
+    });
     await projectA.reload();
-    assert.deepEqual(await projectA.evaluate(() => WWStore.getSettings()), { namespace: "project-a" });
+    assert.deepEqual(await projectA.evaluate(() => WWStore.getSettings()), {
+      namespace: "project-a",
+    });
   },
 );

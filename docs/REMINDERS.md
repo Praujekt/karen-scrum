@@ -1,19 +1,19 @@
 # Optional email and SMS reminders
 
-Weekwise keeps patient names, notes, evidence, and task titles in the browser on this laptop. The local reminder service receives **only active-case counts and deadline dates**. Messages contain counts and a date window, with no patient names or task titles. Recipient addresses, deadlines, and reminder preferences are stored in `.local/reminders.json`; keep the project folder on a private Windows account. This file is not encrypted.
+Karen's Load keeps patient names, notes, evidence, and task titles in the browser on this laptop. The local reminder service receives **only active-case counts and deadline dates**. Messages contain counts and a date window, with no patient names or task titles. Recipient addresses, deadlines, and reminder preferences are stored in `.local/reminders.json`; keep the project folder on a private Windows account. This file is not encrypted.
 
 ## Start the app
 
-Install Node.js 22.13 or newer, then double-click `Start Weekwise.cmd`, or run `npm start` in this folder. Use **http://127.0.0.1:47831** consistently in the same browser profile. No npm install is needed. Keep the command window open for background reminders; the browser tab can be closed after changes are saved. The launcher opens your browser after the local server is ready.
+Install Node.js 22.13 or newer, then double-click `Start Karens Load.cmd`, or run `npm start` in this folder. Use **http://127.0.0.1:47831** consistently in the same browser profile. No npm install is needed. Keep the command window open for background reminders; the browser tab can be closed after changes are saved. The launcher opens your browser after the local server is ready.
 
-The default port is 47831. An advanced `WEEKWISE_PORT` setting is supported in `.env` if that port is unavailable, but keep the chosen address stable: changing a browser origin creates separate browser storage. Export a case backup first and restore it at the new address.
+The default port is 47831. An advanced `KARENS_LOAD_PORT` setting is supported in `.env` if that port is unavailable, but keep the chosen address stable: changing a browser origin creates separate browser storage. Export a case backup first and restore it at the new address.
 
 ## Connect email
 
 1. Create a [Resend account](https://resend.com), configure a sender allowed by your account, and create an API key. Production sending generally requires a verified sender domain; account testing restrictions may apply.
 2. Copy `.env.example` to `.env` in this folder.
-3. Set `RESEND_API_KEY` and `REMINDER_EMAIL_FROM` (for example, `Weekwise <reminders@your-verified-domain.example>`).
-4. Restart Weekwise. In **Reminders**, choose Email, enter the recipient, set the deadline window and daily time, and save. Use **Send test reminder** to verify the connection.
+3. Set `RESEND_API_KEY` and `REMINDER_EMAIL_FROM` (for example, `Karen's Load <reminders@your-verified-domain.example>`).
+4. Restart Karen's Load. In **Reminders**, choose Email, enter the recipient, set the deadline window and daily time, and save. Use **Send test reminder** to verify the connection.
 
 Provider reference: [Resend Send Email](https://resend.com/docs/api-reference/emails/send-email). API keys stay in the local `.env` file and never appear in the browser or case backups.
 
@@ -21,13 +21,13 @@ Provider reference: [Resend Send Email](https://resend.com/docs/api-reference/em
 
 1. Create a [Twilio account](https://www.twilio.com), obtain an SMS-capable sending number, and complete the sender/recipient requirements for your country and account. Trial accounts may restrict recipients; provider fees apply.
 2. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in `.env`. Use an international number such as `+15551234567`.
-3. Restart Weekwise. In **Reminders**, choose SMS and enter the recipient in international format. Save, then send a test.
+3. Restart Karen's Load. In **Reminders**, choose SMS and enter the recipient in international format. Save, then send a test.
 
 Provider reference: [Twilio Messages resource](https://www.twilio.com/docs/messaging/api/message-resource).
 
 ## How the schedule works
 
-The local service checks once a minute and sends one daily digest after the selected time, using the laptop's time zone. A window of 3 days includes today and the following three calendar days. The overdue option also includes earlier unfinished work. Completed cases and completed tasks are excluded. Case deadlines and task deadlines are counted separately. No digest is sent when nothing matches.
+The local service checks once a minute and sends one daily digest after the selected time in **Pacific Time (`America/Los_Angeles`)**, regardless of the laptop's own time zone. PST/PDT daylight-saving changes are handled automatically. A window of 3 days includes today and the following three calendar days. The overdue option also includes earlier unfinished work. Completed cases and completed tasks are excluded. Case deadlines and task deadlines are counted separately. No digest is sent when nothing matches.
 
 Reminders use the latest deadline snapshot saved by this browser. Changes must be saved while the local server is running. The Reminders screen shows the last synchronization time. Restoring a backup, finishing a task, and changing a timeline update the snapshot when the app is open. Browser data in another profile or at another origin is separate.
 

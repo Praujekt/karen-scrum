@@ -1,3 +1,5 @@
+export const TIME_ZONE = "America/Los_Angeles";
+
 export class CloudReminderError extends Error {
   constructor(message, status = 400) {
     super(message);
@@ -135,7 +137,7 @@ export function validateTimeZone(timeZone) {
   }
   return timeZone;
 }
-export function zonedClock(now, timeZone) {
+export function zonedClock(now, timeZone = TIME_ZONE) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
       timeZone,

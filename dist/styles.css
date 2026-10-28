@@ -170,9 +170,13 @@ hr {
   transform: rotate(3deg);
 }
 .brand-name {
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 650;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.5px;
+  line-height: 1.12;
+}
+.brand-subname {
+  display: block;
 }
 .workspace-label {
   padding: 0 15px;
@@ -225,6 +229,34 @@ hr {
   font-size: 10px;
   text-align: center;
   line-height: 21px;
+}
+.nav-case-folder {
+  min-width: 0;
+}
+.nav-subgroup {
+  display: grid;
+  gap: 3px;
+  margin: 4px 8px 2px 23px;
+  padding-left: 11px;
+  border-left: 1px solid #ffffff24;
+}
+.nav-subitem {
+  gap: 9px;
+  padding: 9px 11px;
+  font-size: 12px;
+}
+.folder-status-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #bed0df;
+}
+.nav-subitem.in-progress .folder-status-dot {
+  background: #c6d9b4;
+}
+.nav-subitem.completed .folder-status-dot {
+  background: #cfc6a6;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -1960,6 +1992,76 @@ textarea {
 .attachment-item > .button {
   flex-shrink: 0;
 }
+.template-library-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.template-library-panel {
+  position: sticky;
+  top: 22px;
+  padding: 18px 14px;
+}
+.template-library-list {
+  display: grid;
+  gap: 7px;
+  max-height: min(580px, 65vh);
+  overflow-y: auto;
+}
+.template-library-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 10px;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--ink);
+}
+.template-library-item:hover {
+  background: var(--canvas);
+}
+.template-library-item.active {
+  background: var(--sage);
+  border-color: #c9dac9;
+}
+.template-library-item > span:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.template-library-item strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.template-library-item small {
+  font-size: 10px;
+  color: var(--secondary);
+}
+.template-library-icon {
+  color: var(--teal);
+  padding-top: 1px;
+}
+.template-library-icon svg {
+  width: 17px;
+  height: 17px;
+}
+.template-editor {
+  min-width: 0;
+}
+.template-editor-heading {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.template-editor-heading h2 {
+  overflow-wrap: anywhere;
+}
+.template-editor-heading .header-actions {
+  margin-top: 4px;
+}
 .template-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2179,6 +2281,16 @@ textarea {
   }
 }
 @media (max-width: 1100px) {
+  .template-library-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .template-library-panel {
+    position: static;
+  }
+  .template-library-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-height: 260px;
+  }
   .app-shell {
     grid-template-columns: 190px minmax(0, 1fr);
   }
@@ -2265,6 +2377,9 @@ textarea {
   }
 }
 @media (max-width: 700px) {
+  .template-library-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .app-shell {
     display: block;
   }
@@ -2286,6 +2401,9 @@ textarea {
   .brand-name {
     font-size: 21px;
   }
+  .brand-subname {
+    display: inline;
+  }
   .workspace-label,
   .sidebar-bottom {
     display: none;
@@ -2295,6 +2413,37 @@ textarea {
     gap: 5px;
     overflow-x: auto;
     padding-bottom: 9px;
+  }
+  .nav-group[aria-label="Main Navigation"] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .nav-case-folder {
+    display: contents;
+  }
+  .nav-subgroup {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    order: 1;
+    gap: 5px;
+    margin: 0;
+    padding: 0 0 3px;
+    border: 0;
+  }
+  .nav-subgroup .nav-subitem {
+    width: 100%;
+    padding: 9px 8px;
+    gap: 6px;
+    justify-content: center;
+  }
+  .nav-subgroup .nav-count {
+    margin-left: 1px;
+  }
+  .nav-group[aria-label="Main Navigation"] > .nav-item,
+  .nav-case-folder > .nav-item {
+    justify-content: center;
   }
   .nav-item {
     width: auto;

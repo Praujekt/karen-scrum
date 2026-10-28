@@ -16,7 +16,7 @@ import { createWeekwiseServer } from "../server.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const env = {
   RESEND_API_KEY: "test-email-key",
-  REMINDER_EMAIL_FROM: "Weekwise <test@example.org>",
+  REMINDER_EMAIL_FROM: "Karen's Load <test@example.org>",
   TWILIO_ACCOUNT_SID: "ACtest",
   TWILIO_AUTH_TOKEN: "test-sms-token",
   TWILIO_FROM_NUMBER: "+15551234567",
@@ -33,7 +33,7 @@ async function fixture(t, extra = {}) {
   const service = createReminderService({
     dataPath: path.join(directory, "reminders.json"),
     env,
-    now: () => new Date(2026, 9, 27, 10, 0),
+    now: () => new Date("2026-10-27T17:00:00Z"),
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
       return { ok: true, status: 200 };
@@ -67,7 +67,7 @@ test("calendar validation rejects overflow and missing padding", () => {
 });
 test("window includes today, calendar end date and optional overdue work", () => {
   const p = payload();
-  const date = new Date(2026, 9, 27, 10);
+  const date = new Date("2026-10-27T17:00:00Z");
   assert.deepEqual(deadlineSummary(p.snapshot, p.config, date), {
     today: "2026-10-27",
     through: "2026-10-30",
@@ -153,7 +153,7 @@ test("email digest uses provider API, redacts cases, and deduplicates across ser
   const second = createReminderService({
     dataPath: path.join(directory, "reminders.json"),
     env,
-    now: () => new Date(2026, 9, 27, 15),
+    now: () => new Date("2026-10-27T22:00:00Z"),
     fetchImpl: async () => {
       throw new Error("Must not retry");
     },
@@ -191,7 +191,7 @@ test("a failed SMS is not automatically repeated because delivery may be ambiguo
   assert.match((await service.getStatus()).lastError, /could not reach/);
 });
 test("email failure retries after 15 minutes and success is not resent", async (t) => {
-  let clock = new Date(2026, 9, 27, 10),
+  let clock = new Date("2026-10-27T17:00:00Z"),
     attempts = 0;
   const { service } = await fixture(t, {
     now: () => clock,
@@ -201,7 +201,7 @@ test("email failure retries after 15 minutes and success is not resent", async (
   await service.run();
   await service.run();
   assert.equal(attempts, 1);
-  clock = new Date(2026, 9, 27, 10, 16);
+  clock = new Date("2026-10-27T17:16:00Z");
   await service.run();
   assert.equal(attempts, 2);
   await service.run();
@@ -224,7 +224,7 @@ test("removing credentials leaves saved preferences readable and reports send er
   const withoutCredentials = createReminderService({
     dataPath: path.join(directory, "reminders.json"),
     env: {},
-    now: () => new Date(2026, 9, 27, 10),
+    now: () => new Date("2026-10-27T17:00:00Z"),
   });
   assert.equal((await withoutCredentials.getStatus()).config.enabled, true);
   const result = await withoutCredentials.run();
@@ -236,7 +236,7 @@ test("snapshot-only synchronization preserves disabled settings and needs no pro
   const withoutCredentials = createReminderService({
     dataPath: path.join(directory, "reminders.json"),
     env: {},
-    now: () => new Date(2026, 9, 27, 10),
+    now: () => new Date("2026-10-27T17:00:00Z"),
   });
   await withoutCredentials.syncSnapshot({
     caseCount: 1,

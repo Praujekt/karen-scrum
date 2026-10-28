@@ -1,16 +1,16 @@
 # Encrypted workspace sync
 
-Workspace sync is optional. With no connection, Weekwise keeps cases and evidence only in the current browser. With a configured workspace service, the laptop and phone can open the same cases, notes, checklist marks, and uploaded evidence.
+Workspace sync is optional. With no connection, Karen's Load keeps cases and evidence only in the current browser. With a configured workspace service, the laptop and phone can open the same cases, notes, checklist marks, and uploaded evidence.
 
 ## Connect each device
 
 Deploy and configure the separate worker using [cloud-reminders/README.md](../cloud-reminders/README.md). It needs an HTTPS URL, the exact allowed frontend origin, storage bindings, and either a long connection key or the Google sign-in configuration. Publishing the frontend on GitHub Pages does not deploy or activate that worker.
 
-In Weekwise settings, enter that service URL and either the connection key or sign in with the configured Google account. Choose an encryption passphrase of at least 12 characters. Use the **same service and encryption passphrase on both devices**. The first connection to an empty cloud workspace uploads the current local workspace. Connecting to an existing cloud workspace replaces that device's local cached workspace with the shared records; download a local backup first if it contains work you want to keep.
+In Karen's Load settings, enter that service URL and either the connection key or sign in with the configured Google account. Choose an encryption passphrase of at least 12 characters. Use the **same service and encryption passphrase on both devices**. The first connection to an empty cloud workspace uploads the current local workspace. Connecting to an existing cloud workspace replaces that device's local cached workspace with the shared records; download a local backup first if it contains work you want to keep.
 
 Google sign-in authorizes access to the service. The encryption passphrase is still needed to decrypt the records. The service cannot recover a forgotten passphrase. Keep it somewhere safe, and retain a verified backup independently.
 
-The encryption key stays in memory. After reloading or opening a new session, unlock the workspace again. A key-based connection token is saved in this browser's local storage; a Google ID token is saved only in session storage and may require another Google sign-in when it expires. These connection credentials and the passphrase are excluded from Weekwise backup files.
+The encryption key stays in memory. After reloading or opening a new session, unlock the workspace again. A key-based connection token is saved in this browser's local storage; a Google ID token is saved only in session storage and may require another Google sign-in when it expires. These connection credentials and the passphrase are excluded from Karen's Load backup files.
 
 ## Editing and conflicts
 

@@ -6,6 +6,9 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 
 const require = createRequire(import.meta.url);
+const browserExecutable =
+  process.env.KARENS_LOAD_BROWSER_EXECUTABLE ||
+  process.env.WEEKWISE_BROWSER_EXECUTABLE;
 let chromium;
 try {
   ({ chromium } = require("playwright"));
@@ -46,9 +49,9 @@ test(
       await new Promise((resolve) => server.close(resolve));
     });
     browser = await chromium.launch(
-      process.env.WEEKWISE_BROWSER_EXECUTABLE
+      browserExecutable
         ? {
-            executablePath: process.env.WEEKWISE_BROWSER_EXECUTABLE,
+            executablePath: browserExecutable,
             headless: true,
           }
         : { channel: "chrome", headless: true },

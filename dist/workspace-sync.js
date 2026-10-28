@@ -162,7 +162,7 @@
   function create(options) {
     const DB = (options && options.DB) || root.WWStore;
     if (!DB || !DB.exportSync || !DB.importSync)
-      throw new Error("Load the Weekwise data store before workspace sync.");
+      throw new Error("Load the Karen's Load data store before workspace sync.");
     const scope = new URL(".", root.location.href).pathname;
     const storageKey = "weekwise-workspace-connection:v1:" + scope;
     const sessionKey = storageKey + ":google-session";

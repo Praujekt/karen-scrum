@@ -8,6 +8,9 @@ import { DatabaseSync } from "node:sqlite";
 import { createCloudReminderWorker } from "../cloud-reminders/worker.mjs";
 
 const require = createRequire(import.meta.url);
+const browserExecutable =
+  process.env.KARENS_LOAD_BROWSER_EXECUTABLE ||
+  process.env.WEEKWISE_BROWSER_EXECUTABLE;
 let chromium;
 try {
   ({ chromium } = require("playwright"));
@@ -97,7 +100,7 @@ test(
       },
     };
     const origin = "http://127.0.0.1:" + server.address().port;
-    const service = "https://weekwise-source-integration.example";
+    const service = "https://karens-load-source-integration.example";
     const token = "integration-only-secret-key-0123456789-abcdef";
     const phrase = "integration encryption phrase 123";
     const env = {
@@ -136,9 +139,9 @@ test(
       sqlite.close();
     });
     browser = await chromium.launch(
-      process.env.WEEKWISE_BROWSER_EXECUTABLE
+      browserExecutable
         ? {
-            executablePath: process.env.WEEKWISE_BROWSER_EXECUTABLE,
+            executablePath: browserExecutable,
             headless: true,
           }
         : { channel: "chrome", headless: true },

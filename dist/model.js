@@ -2,6 +2,8 @@
   "use strict";
 
   const DAY = 86400000;
+  const TIME_ZONE = "America/Los_Angeles";
+  const TIME_ZONE_LABEL = "Pacific Time";
   const rows = [
     [1, "Assessment Plan Notification (teacher)"],
     [1, "Cumulative file review"],
@@ -51,15 +53,18 @@
     return stamp / DAY;
   }
 
-  function today() {
-    const date = new Date();
-    return (
-      date.getFullYear() +
-      "-" +
-      String(date.getMonth() + 1).padStart(2, "0") +
-      "-" +
-      String(date.getDate()).padStart(2, "0")
+  function today(now = new Date()) {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+        .formatToParts(now)
+        .map((part) => [part.type, part.value]),
     );
+    return `${parts.year}-${parts.month}-${parts.day}`;
   }
 
   function addDays(iso, count) {
@@ -82,6 +87,119 @@
       week,
       optional: !!optional,
     }));
+  }
+
+  function templateName(value) {
+    if (typeof value !== "string" || !value.trim() || value.trim().length > 100)
+      throw new Error("Enter a template name of up to 100 characters.");
+    return value.trim();
+  }
+
+  function cloneTemplateActivities(activities, freshIds) {
+    if (!Array.isArray(activities) || activities.length > 1000)
+      throw new Error("A template may contain up to 1000 activities.");
+    const ids = new Set();
+    return activities.map((activity) => {
+      if (
+        !activity ||
+        typeof activity.title !== "string" ||
+        !activity.title.trim() ||
+        activity.title.trim().length > 500
+      )
+        throw new Error(
+          "Every template activity needs a title of up to 500 characters.",
+        );
+      if (
+        !Number.isInteger(activity.week) ||
+        activity.week < 1 ||
+        activity.week > 5
+      )
+        throw new Error(
+          "Choose a week from 1 to 5 for every template activity.",
+        );
+      if (
+        activity.optional !== undefined &&
+        typeof activity.optional !== "boolean"
+      )
+        throw new Error(
+          "Choose a valid optional flag for each template activity.",
+        );
+      const id = freshIds ? uid() : activity.id;
+      if (
+        typeof id !== "string" ||
+        !id.trim() ||
+        id.length > 200 ||
+        ids.has(id)
+      )
+        throw new Error("Template activities need unique identifiers.");
+      ids.add(id);
+      return {
+        id,
+        title: activity.title.trim(),
+        week: activity.week,
+        optional: !!activity.optional,
+      };
+    });
+  }
+
+  /** Defensive library snapshots; migrate the former single template without losing edits. */
+  function getTemplates(settings) {
+    const preferences = settings || {};
+    if (Array.isArray(preferences.templates) && preferences.templates.length) {
+      return preferences.templates.map((entry) => ({
+        id: entry.id,
+        name: templateName(entry.name),
+        activities: cloneTemplateActivities(entry.activities, false),
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+      }));
+    }
+    const now = new Date().toISOString();
+    return [
+      {
+        id: "default",
+        name: "Default",
+        activities: cloneTemplateActivities(
+          preferences.template || template(),
+          false,
+        ),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+
+  function getDefaultTemplateId(settings) {
+    const templates = getTemplates(settings);
+    return templates.some(
+      (entry) => entry.id === (settings || {}).defaultTemplateId,
+    )
+      ? settings.defaultTemplateId
+      : (templates.find((entry) => entry.id === "default") || templates[0]).id;
+  }
+
+  function newTemplate(options) {
+    const input = options || {},
+      now = new Date().toISOString();
+    return {
+      id: uid(),
+      name: templateName(input.name),
+      activities: cloneTemplateActivities(
+        input.activities === undefined ? [] : input.activities,
+        true,
+      ),
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function copyTemplate(source, name) {
+    if (!source || !Array.isArray(source.activities))
+      throw new Error("Choose a template to copy.");
+    return newTemplate({
+      name: name === undefined ? source.name + " Copy" : name,
+      activities: source.activities,
+    });
   }
 
   /**
@@ -115,7 +233,7 @@
     const notes = [];
     if (typeof input.notes === "string" && input.notes.trim())
       notes.push({ id: uid(), text: input.notes.trim(), createdAt: now });
-    return {
+    const record = {
       id: uid(),
       name,
       startDate,
@@ -143,6 +261,18 @@
       createdAt: now,
       updatedAt: now,
     };
+    if (input.templateId !== undefined) {
+      if (
+        typeof input.templateId !== "string" ||
+        !input.templateId.trim() ||
+        input.templateId.length > 200
+      )
+        throw new Error("Choose a valid case template.");
+      record.sourceTemplateId = input.templateId;
+    }
+    if (input.templateName !== undefined)
+      record.sourceTemplateName = templateName(input.templateName);
+    return record;
   }
 
   function progress(record) {
@@ -249,11 +379,17 @@
   }
 
   const api = {
+    TIME_ZONE,
+    TIME_ZONE_LABEL,
     uid,
     today,
     addDays,
     dateDiff,
     template,
+    getTemplates,
+    getDefaultTemplateId,
+    newTemplate,
+    copyTemplate,
     taskDue,
     createCase,
     progress,

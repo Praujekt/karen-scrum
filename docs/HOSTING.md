@@ -1,6 +1,6 @@
 # Hosting the frontend
 
-Weekwise's `dist/` folder is a complete static website. You can host those files on GitHub Pages or another HTTPS static host. Visitors need a browser; they do not need Node.js or a server running on their laptops for case tracking.
+The app's `dist/` folder is a complete static website. You can host those files on GitHub Pages or another HTTPS static host. Visitors need a browser; they do not need Node.js or a server running on their laptops for case tracking.
 
 Hosting serves the app's HTML, CSS, JavaScript, and icon. Case records stay in IndexedDB unless you explicitly connect encrypted workspace sync. Static hosting alone does not sync records between devices or upload them to GitHub. Optional workspace sync sends encrypted records and uploaded evidence to the separately configured worker so a phone and laptop can use the same cases; see [WORKSPACE-SYNC.md](WORKSPACE-SYNC.md).
 
@@ -35,17 +35,17 @@ Backups contain patient information and are not encrypted. Store them in an appr
 
 `https://YOUR-ACCOUNT.github.io/project-a/` and `/project-b/` have the same browser origin. A folder path is not a security boundary for IndexedDB. Scripts served from another project under that same origin can access that origin's browser storage. This follows the browser's [same-origin storage rules](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Same-origin_policy#cross-origin_data_storage_access).
 
-For a patient workspace, prefer a dedicated origin, such as a custom subdomain used only for Weekwise, and control who can change the JavaScript served there. This version keeps the original `weekwise-local` database at the host root and namespaces subpath copies by their base path, preventing accidental collisions between project copies. That naming cannot isolate records from other scripts on the same origin. Moving between base paths also needs a backup and restore unless you reconnect the same shared workspace.
+For a patient workspace, prefer a dedicated origin, such as a custom subdomain used only for Karen's Load, and control who can change the JavaScript served there. This version keeps the original `weekwise-local` database at the host root and namespaces subpath copies by their base path, preventing accidental collisions between project copies. That naming cannot isolate records from other scripts on the same origin. Moving between base paths also needs a backup and restore unless you reconnect the same shared workspace.
 
 ## Reminders with a hosted frontend
 
 GitHub Pages hosts static files; it cannot execute the Node reminder service or a scheduled cloud worker. [GitHub describes Pages as static hosting](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
 
-For scheduled reminders that continue when the laptop is off, deploy the separate worker in `cloud-reminders/` and connect it through Weekwise's reminder settings. Follow the worker's setup documentation for its endpoint, access token, allowed frontend origin, provider secrets, and scheduling. Keep provider credentials in the worker's secret storage, never in `dist/` or browser-delivered JavaScript. The reminder scheduler reads only delivery settings and deadline counts/dates. If encrypted workspace sync is also connected, that worker separately stores encrypted records and evidence for sharing between devices.
+For scheduled reminders that continue when the laptop is off, deploy the separate worker in `cloud-reminders/` and connect it through the app's reminder settings. Follow the worker's setup documentation for its endpoint, access token, allowed frontend origin, provider secrets, and scheduling. Keep provider credentials in the worker's secret storage, never in `dist/` or browser-delivered JavaScript. The reminder scheduler reads only delivery settings and deadline counts/dates. If encrypted workspace sync is also connected, that worker separately stores encrypted records and evidence for sharing between devices.
 
 The browser must sync updated deadline information to the reminder service after case changes. A cloud schedule does not give the worker access to browser-only records while the browser is closed. Case tracking remains usable without a reminder service connection.
 
-For reminders that depend on the local laptop instead, use **Start Weekwise.cmd** and the local address; see [REMINDERS.md](REMINDERS.md). Node.js is needed for that local service, not for visiting a hosted static frontend.
+For reminders that depend on the local laptop instead, use **Start Karens Load.cmd** and the local address; see [REMINDERS.md](REMINDERS.md). Node.js is needed for that local service, not for visiting a hosted static frontend.
 
 ## Other static hosts
 

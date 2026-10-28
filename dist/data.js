@@ -111,6 +111,32 @@
     if (JSON.stringify(settings).length > 1024 * 1024)
       fail("Backup settings are too large.");
     if ("template" in settings) validateTemplate(settings.template);
+    if ("templates" in settings) {
+      array(settings.templates, 100, "template library");
+      if (!settings.templates.length)
+        fail("Keep at least one template in the library.");
+      unique(settings.templates, "template");
+      const names = new Set();
+      for (const entry of settings.templates) {
+        if (!plain(entry)) fail("Invalid template in backup.");
+        string(entry.name, 100, "template name");
+        const normalizedName = entry.name.trim().toLowerCase();
+        if (names.has(normalizedName)) fail("Template names must be unique.");
+        names.add(normalizedName);
+        validateTemplate(entry.activities);
+        stamp(entry.createdAt, "template creation date");
+        stamp(entry.updatedAt, "template update date");
+      }
+      if (
+        "defaultTemplateId" in settings &&
+        !settings.templates.some(
+          (entry) => entry.id === settings.defaultTemplateId,
+        )
+      )
+        fail("The default template must exist in the library.");
+    } else if ("defaultTemplateId" in settings) {
+      fail("A default template requires a template library.");
+    }
     if ("demo" in settings && typeof settings.demo !== "boolean")
       fail("Invalid demo setting in backup.");
   }
@@ -119,6 +145,9 @@
     jsonSafety(record, 0);
     id(record.id);
     string(record.name, 200, "patient name");
+    if ("sourceTemplateId" in record) id(record.sourceTemplateId);
+    if ("sourceTemplateName" in record)
+      string(record.sourceTemplateName, 100, "source template name");
     date(record.startDate, "case start date");
     date(record.dueDate, "case due date");
     if (record.dueDate < record.startDate)
@@ -200,7 +229,7 @@
 
   function validateBackup(backup) {
     if (!plain(backup) || backup.format !== "weekwise" || backup.version !== 1)
-      fail("Choose a Weekwise version 1 backup file.");
+      fail("Choose a Karen's Load version 1 backup file.");
     array(backup.cases, 5000, "cases");
     unique(backup.cases, "case");
     backup.cases.forEach(validateCase);
@@ -254,7 +283,7 @@
       if (!root.indexedDB) {
         reject(
           new Error(
-            "This browser cannot save local records. Open Weekwise in an up-to-date browser.",
+            "This browser cannot save local records. Open Karen's Load in an up-to-date browser.",
           ),
         );
         return;
@@ -284,7 +313,7 @@
           request.error || new Error("Local storage could not be opened."),
         );
       request.onblocked = () =>
-        reject(new Error("Close other Weekwise tabs, then try again."));
+        reject(new Error("Close other Karen's Load tabs, then try again."));
       request.onsuccess = () => {
         database = request.result;
         database.onversionchange = () => {

@@ -1,6 +1,6 @@
 # Cloud sync and always-on reminders
 
-This optional Cloudflare Worker gives the static Weekwise frontend an encrypted shared workspace and a reminder scheduler that keeps running when the laptop is off. It is **deploy-ready source, not an activated service**. Deployment needs your Cloudflare account; Google sign-in and email/SMS each need their own setup. No cloud resources or messages are created by opening the local project.
+This optional Cloudflare Worker gives the static Karen's Load frontend an encrypted shared workspace and a reminder scheduler that keeps running when the laptop is off. It is **deploy-ready source, not an activated service**. Deployment needs your Cloudflare account; Google sign-in and email/SMS each need their own setup. No cloud resources or messages are created by opening the local project.
 
 ## What is stored
 
@@ -16,8 +16,8 @@ Run these commands from `cloud-reminders/` using a current Node.js installation.
 
 ```powershell
 npx wrangler login
-npx wrangler d1 create weekwise-reminders
-npx wrangler r2 bucket create weekwise-encrypted-files
+npx wrangler d1 create karens-load
+npx wrangler r2 bucket create karens-load-encrypted-files
 ```
 
 Copy the returned D1 database ID into `wrangler.jsonc` as `database_id`; keep its binding name `DB`. Keep the R2 binding name `FILES` and set its `bucket_name` to the private bucket you created. Do not enable public bucket access.
@@ -27,7 +27,7 @@ Set `ALLOWED_ORIGIN` in `wrangler.jsonc` to the frontend's **exact origin**. For
 Create or upgrade the database tables:
 
 ```powershell
-npx wrangler d1 execute weekwise-reminders --remote --file=schema.sql
+npx wrangler d1 execute karens-load --remote --file=schema.sql
 ```
 
 The schema is safe to apply again and does not reset existing records. Source: [Cloudflare D1 API](https://developers.cloudflare.com/d1/worker-api/), [R2 bucket creation](https://developers.cloudflare.com/r2/buckets/create-buckets/). Encrypted metadata is stored in R2 because [D1 limits each string/row to 2 MB](https://developers.cloudflare.com/d1/platform/limits/).
@@ -79,7 +79,7 @@ Email setup: [Resend Send Email](https://resend.com/docs/api-reference/emails/se
 npx wrangler deploy
 ```
 
-Use the returned HTTPS Worker URL in Weekwise's cloud connection settings. Sign in with the allowed Google account, or use the optional sync token. Set a separate encryption passphrase for the shared workspace, synchronize the first device, then connect the other device using the same passphrase. An existing cloud version is downloaded and decrypted rather than silently replaced.
+Use the returned HTTPS Worker URL in Karen's Load's cloud connection settings. Sign in with the allowed Google account, or use the optional sync token. Set a separate encryption passphrase for the shared workspace, synchronize the first device, then connect the other device using the same passphrase. An existing cloud version is downloaded and decrypted rather than silently replaced.
 
 The Worker is for a **single shared personal workspace**, not separate workspaces for multiple users. Both devices need a connection to synchronize changes. Offline work remains local until a successful sync. If two devices edit independently, the version check returns a conflict; download/review the latest version before retrying. The server never silently overwrites a newer version. A workspace save also commits its redacted reminder counts/dates in the same database transaction. Delayed updates from an older device cannot replace the newer workspace's reminder dates.
 
@@ -87,7 +87,7 @@ GitHub Pages serves only the static frontend and cannot run this API or its sche
 
 ## Reminder schedule
 
-After connecting, save the desired recipients, channels, deadline window, daily time, and time zone. Send one explicit test and verify arrival before relying on daily messages. The cloud cron checks every five minutes, at or after the configured local time. Changes to triggers may take time to propagate; see [Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
+After connecting, save the desired recipients, channels, deadline window, and daily time. The app uses **Pacific Time (`America/Los_Angeles`)** for its business dates and reminder settings, with automatic PST/PDT daylight-saving changes. Send one explicit test and verify arrival before relying on daily messages. The cloud cron checks every five minutes, at or after the configured Pacific time. Changes to triggers may take time to propagate; see [Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
 
 A 3-day window includes today and the following three calendar days. The overdue option also includes earlier unfinished work. Completed cases/tasks are omitted before synchronization. The laptop can be off after the latest deadline snapshot is synchronized. Offline edits are unknown to the scheduler until the next successful sync, so it continues using the previous saved dates.
 

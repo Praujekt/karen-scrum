@@ -206,7 +206,7 @@ async function sendProvider(channel, payload, env, idempotencyKey, fetchImpl) {
       body: JSON.stringify({
         from: env.REMINDER_EMAIL_FROM,
         to: [payload.to],
-        subject: "Weekwise · Your deadline reminder",
+        subject: "Karen's Load · Your deadline reminder",
         text: payload.text,
       }),
       signal: AbortSignal.timeout(20000),
@@ -286,7 +286,7 @@ export function createCloudReminderWorker({
       ).run();
       return { skipped: "no-deadlines" };
     }
-    const text = `Weekwise reminder: ${summary.tasks} unfinished task${summary.tasks === 1 ? "" : "s"} and ${summary.cases} active case deadline${summary.cases === 1 ? "" : "s"} due through ${summary.through}${config.includeOverdue ? ", including overdue work" : ""}. Open Weekwise to review. No patient information is included.`;
+    const text = `Karen's Load reminder: ${summary.tasks} unfinished task${summary.tasks === 1 ? "" : "s"} and ${summary.cases} active case deadline${summary.cases === 1 ? "" : "s"} due through ${summary.through}${config.includeOverdue ? ", including overdue work" : ""}. Open Karen's Load to review. No patient information is included.`;
     for (const channel of config.channels) {
       const payload = makePayload(channel, config, text);
       const key =
@@ -505,7 +505,7 @@ export function createCloudReminderWorker({
               makePayload(
                 channel,
                 config,
-                "Weekwise test reminder. Your cloud reminder connection is working. No patient information is included.",
+                "Karen's Load test reminder. Your cloud reminder connection is working. No patient information is included.",
               ),
               env,
               "weekwise-test-" + crypto.randomUUID(),

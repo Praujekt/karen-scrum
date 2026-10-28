@@ -37,7 +37,7 @@
         const content = document.createElement("div");
         content.className = "modal-body";
         const title = document.createElement("h2");
-        title.textContent = "Sign in to your workspace";
+        title.textContent = "Sign in to Your Workspace";
         const text = document.createElement("p");
         text.className = "form-help";
         text.textContent =

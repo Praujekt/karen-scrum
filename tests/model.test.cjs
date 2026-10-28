@@ -115,13 +115,13 @@ test("new cases clone activity IDs and store notes as individual dated entries",
   const record = model.createCase({
     name: "  Sample Patient  ",
     startDate: "2026-10-01",
-    notes: "Initial note",
+    notes: "Initial Note",
     template,
   });
   assert.equal(record.name, "Sample Patient");
   assert.equal(record.dueDate, "2026-11-04");
   assert.equal(record.status, "open");
-  assert.equal(record.notes[0].text, "Initial note");
+  assert.equal(record.notes[0].text, "Initial Note");
   assert.equal(record.tasks[0].done, false);
   assert.notEqual(record.tasks[0].id, template[0].id);
   record.tasks[0].title = "Custom activity";

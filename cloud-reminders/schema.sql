@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS reminder_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   config_json TEXT NOT NULL,
   snapshot_json TEXT NOT NULL,
-  time_zone TEXT NOT NULL DEFAULT 'UTC',
+  time_zone TEXT NOT NULL DEFAULT 'America/Los_Angeles',
   config_revision INTEGER NOT NULL DEFAULT 0,
   snapshot_revision INTEGER NOT NULL DEFAULT 0,
   snapshot_workspace_version INTEGER NOT NULL DEFAULT 0,

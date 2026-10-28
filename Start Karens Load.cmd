@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Weekwise needs Node.js 22.13 or newer. Install the LTS version from https://nodejs.org then run this file again.
+  echo Karen's Load needs Node.js 22.13 or newer. Install the LTS version from https://nodejs.org then run this file again.
   pause
   exit /b 1
 )

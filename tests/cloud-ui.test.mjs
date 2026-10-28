@@ -8,6 +8,9 @@ import path from "node:path";
 import { createWeekwiseServer } from "../server.mjs";
 import { createReminderService, defaultConfig } from "../reminder-service.mjs";
 const require = createRequire(import.meta.url);
+const browserExecutable =
+  process.env.KARENS_LOAD_BROWSER_EXECUTABLE ||
+  process.env.WEEKWISE_BROWSER_EXECUTABLE;
 let chromium;
 try {
   ({ chromium } = require("playwright"));
@@ -24,7 +27,9 @@ test(
     timeout: 120000,
   },
   async (t) => {
-    const scratch = await mkdtemp(path.join(os.tmpdir(), "weekwise-cloud-ui-"));
+    const scratch = await mkdtemp(
+      path.join(os.tmpdir(), "karens-load-cloud-ui-"),
+    );
     const service = createReminderService({
       dataPath: path.join(scratch, "reminders.json"),
       env: {
@@ -53,9 +58,9 @@ test(
       await rm(scratch, { recursive: true, force: true });
     });
     browser = await chromium.launch(
-      process.env.WEEKWISE_BROWSER_EXECUTABLE
+      browserExecutable
         ? {
-            executablePath: process.env.WEEKWISE_BROWSER_EXECUTABLE,
+            executablePath: browserExecutable,
             headless: true,
           }
         : { channel: "chrome", headless: true },
@@ -68,7 +73,7 @@ test(
     const page = await context.newPage(),
       origin = "http://127.0.0.1:" + server.address().port;
     const cloudUrl = "https://reminders.example.workers.dev",
-      token = "weekwise-test-connection-token-0123456789";
+      token = "karens-load-test-connection-token-0123456789";
     const requests = [],
       unexpected = [],
       errors = [],
@@ -145,22 +150,22 @@ test(
       });
     });
     await page.goto(origin);
-    await page.getByRole("button", { name: "New case", exact: true }).click();
+    await page.getByRole("button", { name: "New Case", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog
-      .getByLabel("Patient name", { exact: false })
+      .getByLabel("Patient Name", { exact: false })
       .fill("Private patient name");
     await dialog
-      .getByLabel("Initial note", { exact: false })
+      .getByLabel("Initial Note", { exact: false })
       .fill("Private narrative must stay on this device.");
     await dialog
-      .getByRole("button", { name: "Create case", exact: true })
+      .getByRole("button", { name: "Create Case", exact: true })
       .click();
     await page
       .getByRole("heading", { name: "Private patient name", exact: true })
       .waitFor();
     await page
-      .getByRole("button", { name: "Reminders & settings", exact: true })
+      .getByRole("button", { name: "Reminders & Settings", exact: true })
       .click();
     assert.equal(
       requests.length,
@@ -168,14 +173,14 @@ test(
       "No external service is contacted before an explicit connection.",
     );
     await page
-      .getByRole("button", { name: "Connect cloud reminders", exact: true })
+      .getByRole("button", { name: "Connect Cloud Reminders", exact: true })
       .click();
     await dialog
       .getByLabel("Service URL")
       .fill("http://reminders.example.workers.dev");
-    await dialog.getByLabel("Connection token").fill(token);
+    await dialog.getByLabel("Connection Token").fill(token);
     await dialog
-      .getByRole("button", { name: "Connect service", exact: true })
+      .getByRole("button", { name: "Connect Service", exact: true })
       .click();
     await dialog
       .getByRole("alert")
@@ -184,7 +189,7 @@ test(
     assert.equal(requests.length, 0);
     await dialog.getByLabel("Service URL").fill(cloudUrl + "/status?token=no");
     await dialog
-      .getByRole("button", { name: "Connect service", exact: true })
+      .getByRole("button", { name: "Connect Service", exact: true })
       .click();
     await dialog
       .getByRole("alert")
@@ -193,10 +198,10 @@ test(
     assert.equal(requests.length, 0);
     await dialog.getByLabel("Service URL").fill(cloudUrl);
     await dialog
-      .getByRole("button", { name: "Connect service", exact: true })
+      .getByRole("button", { name: "Connect Service", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
-    await page.getByText("Cloud connected", { exact: true }).waitFor();
+    await page.getByText("Cloud Connected", { exact: true }).waitFor();
     assert.equal(
       (await service.getStatus()).config.enabled,
       false,
@@ -226,14 +231,14 @@ test(
       assert.ok(!JSON.stringify(request.body).includes("Private patient"));
       assert.ok(!JSON.stringify(request.body).includes("Private narrative"));
     }
-    await page.getByLabel("Enable daily reminders").check();
-    await page.getByLabel("Email reminders", { exact: false }).check();
+    await page.getByLabel("Enable Daily Reminders").check();
+    await page.getByLabel("Email Reminders", { exact: false }).check();
     await page
-      .getByLabel("Reminder email address")
+      .getByLabel("Reminder Email Address")
       .fill("recipient@example.com");
-    await page.getByLabel("Daily send time").fill("10:45");
+    await page.getByLabel("Daily Send Time").fill("10:45");
     await page
-      .getByRole("button", { name: "Save reminders", exact: true })
+      .getByRole("button", { name: "Save Reminders", exact: true })
       .click();
     await page
       .getByRole("status")
@@ -242,10 +247,10 @@ test(
     assert.equal(remote.config.enabled, true);
     assert.equal(remote.timeZone, "America/Los_Angeles");
     await page
-      .getByRole("button", { name: "Send test reminder", exact: true })
+      .getByRole("button", { name: "Send Test Reminder", exact: true })
       .click();
     await dialog
-      .getByRole("button", { name: "Send test", exact: true })
+      .getByRole("button", { name: "Send Test", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
     assert.ok(
@@ -255,7 +260,7 @@ test(
     );
     const download = page.waitForEvent("download");
     await page
-      .getByRole("button", { name: "Download backup", exact: true })
+      .getByRole("button", { name: "Download Backup", exact: true })
       .click();
     const backupText = await readFile(await (await download).path(), "utf8");
     assert.ok(
@@ -279,7 +284,7 @@ test(
       "Cloud failure does not silently switch to local reminders.",
     );
     await page
-      .getByRole("button", { name: "All cases", exact: false })
+      .getByRole("button", { name: "All Cases", exact: false })
       .first()
       .click();
     await page
@@ -294,13 +299,13 @@ test(
         ).tasks[0].done,
     );
     await page
-      .getByRole("button", { name: "Reminders & settings", exact: true })
+      .getByRole("button", { name: "Reminders & Settings", exact: true })
       .click();
     await page
-      .getByRole("button", { name: "Disconnect cloud reminders", exact: true })
+      .getByRole("button", { name: "Disconnect Cloud Reminders", exact: true })
       .click();
     await dialog
-      .getByRole("button", { name: "Disconnect service", exact: true })
+      .getByRole("button", { name: "Disconnect Service", exact: true })
       .click();
     await dialog
       .getByRole("alert")
@@ -313,9 +318,9 @@ test(
       saved,
     );
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-    await page.getByRole("button", { name: /Clear workspace/ }).click();
+    await page.getByRole("button", { name: /Clear Workspace/ }).click();
     await dialog
-      .getByRole("button", { name: "Clear everything", exact: true })
+      .getByRole("button", { name: "Clear Everything", exact: true })
       .click();
     await dialog
       .getByRole("alert")
@@ -330,7 +335,7 @@ test(
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     offline = false;
     await page
-      .getByRole("button", { name: "Retry connection", exact: true })
+      .getByRole("button", { name: "Retry Connection", exact: true })
       .click();
     await page
       .getByRole("status")
@@ -338,10 +343,10 @@ test(
       .waitFor();
     rejectDisable = true;
     await page
-      .getByRole("button", { name: "Disconnect cloud reminders", exact: true })
+      .getByRole("button", { name: "Disconnect Cloud Reminders", exact: true })
       .click();
     await dialog
-      .getByRole("button", { name: "Disconnect service", exact: true })
+      .getByRole("button", { name: "Disconnect Service", exact: true })
       .click();
     await dialog
       .getByRole("alert")
@@ -357,14 +362,14 @@ test(
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     rejectDisable = false;
     await page
-      .getByRole("button", { name: "Disconnect cloud reminders", exact: true })
+      .getByRole("button", { name: "Disconnect Cloud Reminders", exact: true })
       .click();
     await dialog
-      .getByRole("button", { name: "Disconnect service", exact: true })
+      .getByRole("button", { name: "Disconnect Service", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
     await page
-      .getByRole("button", { name: "Connect cloud reminders", exact: true })
+      .getByRole("button", { name: "Connect Cloud Reminders", exact: true })
       .waitFor();
     assert.equal(remote.config.enabled, false);
     assert.equal(

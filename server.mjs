@@ -67,12 +67,12 @@ export function createWeekwiseServer({
       const expectedHost = `127.0.0.1:${address.port}`,
         expectedOrigin = `http://${expectedHost}`;
       if (request.headers.host !== expectedHost)
-        return json(403, { error: `Open Weekwise at ${expectedOrigin}.` });
+        return json(403, { error: `Open Karen's Load at ${expectedOrigin}.` });
       const url = new URL(request.url, expectedOrigin);
       if (url.pathname.startsWith("/api/")) {
         if (request.headers.origin && request.headers.origin !== expectedOrigin)
           return json(403, {
-            error: "Requests must come from your local Weekwise window.",
+            error: "Requests must come from your local Karen's Load window.",
           });
         if (request.headers["sec-fetch-site"] === "cross-site")
           return json(403, { error: "Cross-site requests are not allowed." });
@@ -82,7 +82,7 @@ export function createWeekwiseServer({
             request.headers["x-weekwise-request"] !== "1")
         )
           return json(403, {
-            error: "A same-origin Weekwise request is required.",
+            error: "A same-origin Karen's Load request is required.",
           });
         if (request.method === "GET" && url.pathname === "/api/reminders")
           return json(200, await service.getStatus());
@@ -166,12 +166,13 @@ if (
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   loadEnvironment();
-  const port = process.env.WEEKWISE_PORT
-    ? Number(process.env.WEEKWISE_PORT)
-    : 47831;
+  // Keep an existing custom origin stable while the public setting uses the new name.
+  const configuredPort =
+    process.env.KARENS_LOAD_PORT || process.env.WEEKWISE_PORT;
+  const port = configuredPort ? Number(configuredPort) : 47831;
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw new Error(
-      "WEEKWISE_PORT must be a port number between 1024 and 65535.",
+      "KARENS_LOAD_PORT must be a port number between 1024 and 65535.",
     );
   const localUrl = `http://127.0.0.1:${port}`;
   const service = createReminderService();
@@ -186,14 +187,14 @@ if (
     clearInterval(timer);
     console.error(
       error.code === "EADDRINUSE"
-        ? `Cannot start Weekwise because port ${port} is in use. If Weekwise is already open, return to its window. Otherwise close the app using that port or set WEEKWISE_PORT in .env. Changing the port creates a separate browser storage location.`
+        ? `Cannot start Karen's Load because port ${port} is in use. If Karen's Load is already open, return to its window. Otherwise close the app using that port or set KARENS_LOAD_PORT in .env. Changing the port creates a separate browser storage location.`
         : error.message,
     );
     process.exitCode = 1;
   });
   server.listen(port, "127.0.0.1", () => {
     console.log(
-      `Weekwise is ready: ${localUrl}\nKeep this window open for email/SMS reminders. Press Ctrl+C to stop.`,
+      `Karen's Load is ready: ${localUrl}\nKeep this window open for email/SMS reminders. Press Ctrl+C to stop.`,
     );
     if (process.argv.includes("--open")) {
       const command =
