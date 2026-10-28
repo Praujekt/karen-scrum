@@ -50,8 +50,8 @@
       <h1>Reminders while the laptop is off.</h1>
       <p>
         Weekwise can use a small Cloudflare service to run a daily reminder
-        schedule independently of your laptop. The website and all case records
-        remain separate from that service.
+        schedule independently of your laptop. A shared workspace can use the
+        same service for encrypted records across your phone and laptop.
       </p>
       <div class="panel">
         <h2 style="margin-top: 0">You can try the tracker first.</h2>
@@ -82,6 +82,11 @@
         </li>
       </ol>
       <h2>Connect from Weekwise</h2>
+      <p>
+        If you already connected a shared workspace, its sign-in also connects
+        reminders. Use the delivery settings below it; no second token is
+        needed. Otherwise, follow these steps for reminders on one device.
+      </p>
       <ol>
         <li>
           Open
@@ -110,13 +115,15 @@
       <p>
         The service receives active-case counts, unfinished deadline dates, and
         your delivery preferences, including the recipient. Patient names,
-        activity titles, notes, and evidence are excluded. Messages contain
-        counts and date windows.
+        activity titles, notes, and evidence are excluded from reminder data and
+        messages. A connected shared workspace separately stores encrypted
+        copies of your records and evidence.
       </p>
       <p>
-        The connection token stays in this browser’s local storage, separately
-        from case backups. Keep your original token somewhere secure. Connecting
-        reminders does not synchronize cases between devices.
+        Saved connection credentials are separate from case backups. Keep your
+        original access key somewhere secure. Your encryption passphrase is
+        never saved. Connecting only reminders does not synchronize cases
+        between devices.
       </p>
       <h2>Pause or disconnect</h2>
       <p>
@@ -125,6 +132,11 @@
         schedule, then removes the saved connection token. If the service cannot
         be reached, Weekwise keeps the connection so you can retry. Clearing
         browser data alone does not stop a cloud schedule.
+      </p>
+      <p>
+        For reminders using a shared workspace, turn off daily reminders and
+        save before disconnecting the workspace. Disconnecting a browser keeps
+        the cloud records and does not stop the reminder schedule.
       </p>
       <p>
         Local reminders remain available through
