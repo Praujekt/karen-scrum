@@ -193,23 +193,24 @@ function endpoint(page, kind, id, stage) {
 async function assertEndpoints(page, kind, task) {
   const start = endpoint(page, kind, task.id, "start");
   const end = endpoint(page, kind, task.id, "end");
-  const escapePattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   assert.equal(
     await page.locator(`.${kind}-row[data-task-id="${task.id}"]`).count(),
     2,
   );
-  assert.match(
-    await start.innerText(),
-    new RegExp(escapePattern(task.title) + " \\(Start\\)"),
-  );
-  assert.match(
-    await end.innerText(),
-    new RegExp(escapePattern(task.title) + " \\(End\\)"),
-  );
-  for (const [row, week] of [
-    [start, task.week],
-    [end, task.endWeek],
+  for (const [row, week, label] of [
+    [start, task.week, "Starting Week"],
+    [end, task.endWeek, "Ending Week"],
   ]) {
+    assert.equal(
+      await row.locator(".activity-endpoint-label").innerText(),
+      label,
+    );
+    const text = await row.innerText();
+    assert.ok(text.includes(task.title));
+    assert.ok(
+      text.indexOf(label) < text.indexOf(task.title),
+      "The week label precedes the activity title.",
+    );
     assert.equal(
       await row.evaluate((element) =>
         element.closest("section").querySelector("h2").textContent.trim(),
@@ -228,12 +229,13 @@ async function assertEndpoints(page, kind, task) {
       await end.locator("[data-task-written]").count(),
       task.requiresSubmission ? 1 : 0,
     );
-    assert.match(
-      await start.innerText(),
-      task.done
-        ? /Activity completed\./
-        : new RegExp("End entry in Week " + task.endWeek),
+    assert.equal(
+      await start.locator(".task-start-marker, .task-endpoint-help").count(),
+      0,
+      "The starting entry follows the ordinary row layout without a special arrow or helper.",
     );
+    for (const row of [start, end])
+      assert.equal(await row.locator(".task-title").innerText(), task.title);
   }
   return { start, end };
 }
@@ -255,9 +257,33 @@ function calendarLabel(iso) {
     day: "numeric",
   }).format(new Date(iso + "T12:00:00Z"));
 }
+async function assertLeftControls(ordinary, staged) {
+  const ordinaryBox = await ordinary.locator("[data-task-check]").boundingBox();
+  const titleBox = await staged.locator(".task-title").boundingBox();
+  const columnBox = await staged.locator(".task-stage-checks").boundingBox();
+  assert.ok(ordinaryBox && titleBox && columnBox);
+  assert.ok(
+    columnBox.x + columnBox.width <= titleBox.x + 1,
+    "Written/Submitted controls sit entirely to the left of the title.",
+  );
+  assert.ok(
+    columnBox.y < titleBox.y + titleBox.height &&
+      titleBox.y < columnBox.y + columnBox.height,
+    "The controls stay beside the title rather than below it.",
+  );
+  for (const control of await staged
+    .locator("[data-task-check], [data-task-written]")
+    .all()) {
+    const box = await control.boundingBox();
+    assert.ok(
+      Math.abs(box.x - ordinaryBox.x) <= 1,
+      "Both staged checkboxes align with the ordinary checkbox.",
+    );
+  }
+}
 
 test(
-  "Start/End markers and Written/Submitted stages remain one activity across templates and cases",
+  "starting and ending week markers and Written/Submitted stages remain one activity across templates and cases",
   options,
   async (t) => {
     const { page, dialog, errors, external } = await workspace(t);
@@ -390,6 +416,10 @@ test(
     );
     assert.equal(await page.locator("[data-task-check]").count(), 2);
     assert.equal(await page.locator("[data-task-written]").count(), 1);
+    await assertLeftControls(
+      endpoint(page, "task", first.tasks[1].id, "single"),
+      firstEndpoints.end,
+    );
     assert.equal(
       await endpoint(page, "task", first.tasks[1].id, "single").count(),
       1,
@@ -603,12 +633,11 @@ test(
     );
     await assertEndpoints(page, "task", first.tasks[0]);
     assert.equal(
-      await page.getByText("Long report (Start)", { exact: true }).count(),
+      await page
+        .getByRole("button", { name: "Edit Long report", exact: true })
+        .count(),
       0,
-    );
-    assert.equal(
-      await page.getByText("Long report (End)", { exact: true }).count(),
-      0,
+      "Both endpoint titles update after editing the underlying activity.",
     );
     assert.equal(
       (await template(page, "Extended Reports")).activities[0].title,
@@ -775,6 +804,10 @@ test(
       page,
       "Week ranges and both activity stages fit a phone viewport.",
     );
+    await assertLeftControls(
+      endpoint(page, "task", first.tasks[1].id, "end"),
+      endpoint(page, "task", first.tasks[0].id, "end"),
+    );
     await screenshot(page, "activity-stages-mobile");
     await endpoint(page, "task", first.tasks[0].id, "end")
       .getByRole("button", { name: "Edit Case report only", exact: true })
@@ -803,6 +836,160 @@ test(
     assert.equal(
       (await template(page, "Extended Reports")).activities.length,
       2,
+    );
+    assert.deepEqual(errors, []);
+    assert.deepEqual(external, []);
+  },
+);
+
+test(
+  "starting-week urgency follows the week window, final deadline, and activity state",
+  options,
+  async (t) => {
+    const { page, base, errors, external } = await workspace(t);
+    const fixtures = await page.evaluate(async () => {
+      const M = WWModel,
+        today = M.today(),
+        result = {};
+      for (const [key, offset, options = {}] of [
+        ["passed", 27],
+        ["today", 28],
+        ["soon", 35],
+        ["later", 36],
+        ["custom", 35, { dueOffset: 2 }],
+        ["written", 27, { written: true }],
+        ["finalPassed", -1, { written: true }],
+        ["taskCompleted", -1, { written: true, done: true }],
+        ["caseCompleted", -1, { status: "completed" }],
+      ]) {
+        const entry = M.createCase({
+          name: "Urgency " + key,
+          startDate: M.addDays(today, -40),
+          dueDate: M.addDays(today, offset),
+          template: [
+            {
+              id: M.uid(),
+              title: "Spanning activity",
+              week: 1,
+              endWeek: 5,
+              requiresSubmission: true,
+            },
+          ],
+        });
+        entry.status = options.status || "in_progress";
+        entry.tasks[0].written = !!options.written;
+        entry.tasks[0].done = !!options.done;
+        if (options.dueOffset !== undefined)
+          entry.tasks[0].dueDate = M.addDays(today, options.dueOffset);
+        await WWStore.saveCase(entry);
+        result[key] = entry;
+      }
+      return result;
+    });
+    await page.reload();
+    await page
+      .getByRole("heading", { name: "At a Glance", exact: true })
+      .waitFor();
+    async function focus(key) {
+      const entry = fixtures[key];
+      await page.goto(base + "#case/" + entry.id);
+      await page
+        .getByRole("heading", { name: entry.name, exact: true })
+        .waitFor();
+      return entry.tasks[0];
+    }
+    async function warning(task, stage, kind, text) {
+      const row = endpoint(page, "task", task.id, stage);
+      const active = await row.evaluate((element) =>
+        ["urgent-overdue", "urgent-soon"].filter((name) =>
+          element.classList.contains(name),
+        ),
+      );
+      assert.deepEqual(
+        active,
+        kind ? [kind] : [],
+        `${stage} has the expected urgency.`,
+      );
+      if (text)
+        assert.match(
+          await row.locator(".activity-due-label").innerText(),
+          text,
+        );
+      else assert.equal(await row.locator(".activity-due-label").count(), 0);
+    }
+    for (const [key, kind, text] of [
+      ["passed", "urgent-overdue", /^Start Week Passed$/],
+      ["today", "urgent-soon", /^Start Week Ends Today$/],
+      ["soon", "urgent-soon", /^Start Week Ends in 7 Days$/],
+      ["later", null, null],
+      ["custom", "urgent-soon", /^Start Week Ends in 2 Days$/],
+    ]) {
+      const task = await focus(key);
+      await warning(task, "start", kind, text);
+      await warning(
+        task,
+        "end",
+        key === "custom" ? "urgent-soon" : null,
+        key === "custom" ? /due in 2 days/i : null,
+      );
+      assert.equal(
+        await endpoint(page, "task", task.id, "start")
+          .locator("input[type=checkbox]")
+          .count(),
+        0,
+      );
+      if (key === "passed") {
+        await screenshot(page, "activity-start-urgency-desktop");
+        await page.setViewportSize({ width: 390, height: 844 });
+        await assertFits(
+          page,
+          "A passed starting week and future ending date fit a phone.",
+        );
+        await screenshot(page, "activity-start-urgency-mobile");
+        await page.setViewportSize({ width: 1365, height: 900 });
+      }
+    }
+    let task = await focus("written");
+    await warning(task, "start", null, null);
+    await warning(task, "end", null, null);
+    await page.locator(`[data-task-written="${task.id}"]`).uncheck();
+    await waitTask(page, fixtures.written.name, task.title, {
+      written: false,
+      done: false,
+    });
+    await warning(task, "start", "urgent-overdue", /^Start Week Passed$/);
+    await page.locator(`[data-task-written="${task.id}"]`).check();
+    await waitTask(page, fixtures.written.name, task.title, {
+      written: true,
+      done: false,
+    });
+    await warning(task, "start", null, null);
+    task = await focus("finalPassed");
+    for (const stage of ["start", "end"])
+      await warning(task, stage, "urgent-overdue", /1(?:d| day) overdue/i);
+    await page.locator(`[data-task-check="${task.id}"]`).check();
+    await waitTask(page, fixtures.finalPassed.name, task.title, {
+      written: true,
+      done: true,
+    });
+    await assertEndpointCompletion(page, task, true);
+    for (const stage of ["start", "end"])
+      await warning(task, stage, null, null);
+    await page.locator(`[data-task-check="${task.id}"]`).uncheck();
+    await waitTask(page, fixtures.finalPassed.name, task.title, {
+      written: true,
+      done: false,
+    });
+    for (const stage of ["start", "end"])
+      await warning(task, stage, "urgent-overdue", /1(?:d| day) overdue/i);
+    for (const key of ["taskCompleted", "caseCompleted"]) {
+      task = await focus(key);
+      for (const stage of ["start", "end"])
+        await warning(task, stage, null, null);
+    }
+    assert.ok(
+      (await records(page)).every((entry) => entry.tasks.length === 1),
+      "Week markers and urgency never create additional activities.",
     );
     assert.deepEqual(errors, []);
     assert.deepEqual(external, []);

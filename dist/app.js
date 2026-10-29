@@ -834,8 +834,14 @@
   }
   function activityTitle(task, endpoint) {
     return (
+      (endpoint === "single"
+        ? ""
+        : '<span class="activity-endpoint-label">' +
+          (endpoint === "start" ? "Starting Week" : "Ending Week") +
+          "</span> ") +
+      '<span class="task-title">' +
       esc(task.title) +
-      (endpoint === "start" ? " (Start)" : endpoint === "end" ? " (End)" : "")
+      "</span>"
     );
   }
   function ifNeededTag(task) {
@@ -844,40 +850,35 @@
       : "";
   }
   function taskRow(c, task, endpoint) {
-    const isStart = endpoint === "start";
+    const isStart = endpoint === "start",
+      today = M.today(),
+      startTarget = M.taskDue(c.startDate, c.dueDate, task.week),
+      startWindowEnd = startTarget < task.dueDate ? startTarget : task.dueDate,
+      showStartWindow =
+        isStart &&
+        !(task.requiresSubmission && task.written) &&
+        task.dueDate >= today,
+      urgencyDate = showStartWindow ? startWindowEnd : task.dueDate;
     const urgency =
-      !isStart && !task.done && c.status !== "completed"
-        ? task.dueDate < M.today()
+      !task.done && c.status !== "completed"
+        ? urgencyDate < today
           ? "urgent-overdue"
-          : M.dateDiff(M.today(), task.dueDate) <= 7
+          : M.dateDiff(today, urgencyDate) <= 7
             ? "urgent-soon"
             : ""
         : "";
     const title =
-      '<span class="task-title">' +
+      '<span class="activity-copy">' +
       activityTitle(task, endpoint) +
       ifNeededTag(task) +
       "</span>";
     const stages = isStart
-      ? '<div class="task-start-entry"><span class="task-start-marker" aria-hidden="true">' +
-        icon(task.done ? "check" : "arrow") +
-        '</span><div class="task-description">' +
-        title +
-        '<span class="task-endpoint-help">' +
-        (task.done
-          ? "Activity completed."
-          : M.isAwaitingSubmission(task)
-            ? "Written; mark Submitted at the End entry in Week " +
-              M.activityEndWeek(task) +
-              "."
-            : "Complete at the End entry in Week " +
-              M.activityEndWeek(task) +
-              ".") +
-        "</span></div></div>"
+      ? '<div class="task-description task-start-entry">' + title + "</div>"
       : task.requiresSubmission
         ? '<div class="task-description">' +
-          title +
-          '<div class="task-stage-checks"><label><input type="checkbox" data-task-written="' +
+          '<div class="task-stage-checks" role="group" aria-label="Completion Steps for ' +
+          esc(task.title) +
+          '"><label><input type="checkbox" data-task-written="' +
           esc(task.id) +
           '" aria-label="Mark ' +
           esc(task.title) +
@@ -889,7 +890,9 @@
           esc(task.title) +
           ' Submitted"' +
           (task.done ? " checked" : "") +
-          "> Submitted</label></div></div>"
+          "> Submitted</label></div>" +
+          title +
+          "</div>"
         : '<label class="task-check"><input type="checkbox" data-task-check="' +
           esc(task.id) +
           '"' +
@@ -900,8 +903,17 @@
           title +
           "</label>";
     const dates = isStart
-      ? "Starts " + fmt(M.activityStartDate(c, task))
+      ? fmt(M.activityStartDate(c, task)) + " – " + fmt(startWindowEnd)
       : (endpoint === "end" ? "Due " : "") + fmt(task.dueDate);
+    const urgencyLabel = showStartWindow
+      ? urgencyDate < today
+        ? "Start Week Passed"
+        : urgencyDate === today
+          ? "Start Week Ends Today"
+          : "Start Week Ends in " + M.dateDiff(today, urgencyDate) + " Days"
+      : task.dueDate === today
+        ? "Due Today"
+        : dueText(task.dueDate);
     return (
       '<div class="task-row ' +
       (task.done ? "is-done " : "") +
@@ -921,13 +933,7 @@
       dates +
       "</span>" +
       (urgency
-        ? '<strong class="activity-due-label">' +
-          (urgency === "urgent-overdue"
-            ? dueText(task.dueDate)
-            : task.dueDate === M.today()
-              ? "Due Today"
-              : dueText(task.dueDate)) +
-          "</strong>"
+        ? '<strong class="activity-due-label">' + urgencyLabel + "</strong>"
         : "") +
       '</div><div class="task-actions"><button class="icon-button" data-action="edit-task" data-id="' +
       esc(task.id) +
@@ -940,7 +946,7 @@
   }
   function tasksView(c) {
     return (
-      '<div class="section-heading activities-heading"><div class="activities-guidance"><p class="muted small">Check off each activity as it is finished. Multi-week activities are completed at their End entry.</p>' +
+      '<div class="section-heading activities-heading"><div class="activities-guidance"><p class="muted small">Check off each activity as it is finished. Multi-week activities show Starting Week and Ending Week; completion is recorded at Ending Week.</p>' +
       (c.tasks.some((task) => task.optional)
         ? '<p class="form-help"><strong>If Needed</strong> means a conditional activity. It still counts toward progress and due lists. If it does not apply, use Edit Activity to remove it from this case.</p>'
         : "") +
@@ -1337,7 +1343,7 @@
       button("template-add", icon("plus") + " Add Activity", "primary small") +
       '</div></div><div class="notice">' +
       icon("calendar") +
-      "<span><strong>Five weeks, planned backward.</strong> Week 5 ends on the final deadline. Each earlier week ends 7 days before the next. Multi-week activities appear at their Start and End.</span></div>" +
+      "<span><strong>Five weeks, planned backward.</strong> Week 5 ends on the final deadline. Each earlier week ends 7 days before the next. Multi-week activities show Starting Week and Ending Week.</span></div>" +
       (ts.some((task) => task.optional)
         ? '<p class="form-help template-conditional-help"><strong>If Needed</strong> activities are conditional. New cases include them; remove any that do not apply from that case. The saved template stays unchanged.</p>'
         : "") +
@@ -1359,7 +1365,7 @@
                   '" data-endpoint="' +
                   activityEndpoint(t, w) +
                   '"><span class="template-check" aria-hidden="true">' +
-                  icon(activityEndpoint(t, w) === "start" ? "arrow" : "check") +
+                  icon("check") +
                   "</span><span>" +
                   activityTitle(t, activityEndpoint(t, w)) +
                   (t.requiresSubmission && activityEndpoint(t, w) !== "start"
@@ -2067,7 +2073,7 @@
             (old ? old.dueDate : M.taskDue(c.startDate, c.dueDate, week || 1)) +
             '"></div>'
           : "") +
-        '</div><p class="form-help" id="activity-range-help" hidden>A multi-week activity appears at its Start and End. Complete it at the End entry; it counts as one activity.</p><label class="checkbox-label activity-option"><input type="checkbox" name="requiresSubmission"' +
+        '</div><p class="form-help" id="activity-range-help" hidden>A multi-week activity shows Starting Week and Ending Week. Complete it at Ending Week; it counts as one activity.</p><label class="checkbox-label activity-option"><input type="checkbox" name="requiresSubmission"' +
         (old && old.requiresSubmission ? " checked" : "") +
         '> Track Written and Submitted Separately</label><p class="form-help">Use two steps for activities that need a written draft and a final submission. Only Submitted counts as complete.</p><label class="checkbox-label activity-option"><input type="checkbox" name="optional" ' +
         (old && old.optional ? "checked" : "") +

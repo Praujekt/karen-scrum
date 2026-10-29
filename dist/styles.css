@@ -1109,7 +1109,8 @@ hr {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 14px 17px;
+  padding: 14px 17px 14px 13px;
+  border-left: 4px solid transparent;
   border-bottom: 1px solid #f0f2ec;
   min-height: 61px;
 }
@@ -1163,35 +1164,33 @@ hr {
   border-color: #d9dfeb;
 }
 .task-description {
-  flex: 1;
-  min-width: 0;
-}
-.task-start-entry {
   display: flex;
   align-items: center;
   gap: 11px;
   flex: 1;
   min-width: 0;
 }
-.task-start-marker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 20px;
-  flex: 0 0 16px;
-  color: var(--teal);
+.task-start-entry {
+  padding-left: 27px;
 }
-.task-start-marker svg {
-  width: 15px;
-  height: 15px;
-}
-.task-endpoint-help {
+.activity-copy {
   display: block;
-  margin-top: 3px;
-  font-size: 10px;
+  flex: 1;
+  min-width: 0;
   line-height: 1.6;
-  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.activity-endpoint-label {
+  margin-right: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #526b5c;
+}
+.activity-endpoint-label::after {
+  content: ":";
+}
+.template-row .task-title {
+  font-size: inherit;
 }
 .activities-heading {
   align-items: flex-start;
@@ -1207,24 +1206,21 @@ hr {
 }
 .task-stage-checks {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+  gap: 5px;
 }
 .task-stage-checks label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 8px;
-  background: #fff;
-  border: 1px solid #dce5dd;
-  border-radius: 6px;
+  padding: 2px 0;
+  min-height: 22px;
   font-size: 11px;
   cursor: pointer;
 }
 .task-stage-checks label:has(input:checked) {
-  background: #e9f1e7;
-  border-color: #b8cebb;
   color: #355b43;
 }
 .activity-option {
@@ -2547,7 +2543,7 @@ textarea {
     margin-left: 0;
   }
   .task-stage-checks label {
-    min-height: 36px;
+    min-height: 28px;
   }
   .template-library-list {
     grid-template-columns: minmax(0, 1fr);
@@ -2823,7 +2819,7 @@ textarea {
     padding-right: 4px;
   }
   .task-row {
-    padding: 13px 12px;
+    padding: 13px 12px 13px 8px;
     gap: 8px;
   }
   .task-title {
