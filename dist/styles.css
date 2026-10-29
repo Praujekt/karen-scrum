@@ -1145,7 +1145,6 @@ hr {
   border-radius: 5px;
   padding: 3px 7px;
 }
-.activity-range-tag,
 .activity-workflow-tag {
   display: inline-block;
   margin: 3px 0 3px 7px;
@@ -1166,6 +1165,45 @@ hr {
 .task-description {
   flex: 1;
   min-width: 0;
+}
+.task-start-entry {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+}
+.task-start-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  flex: 0 0 16px;
+  color: var(--teal);
+}
+.task-start-marker svg {
+  width: 15px;
+  height: 15px;
+}
+.task-endpoint-help {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--secondary);
+}
+.activities-heading {
+  align-items: flex-start;
+}
+.activities-guidance {
+  max-width: 580px;
+}
+.activities-guidance .form-help {
+  margin-bottom: 0;
+}
+.template-conditional-help {
+  margin: 12px 0;
 }
 .task-stage-checks {
   display: flex;
@@ -1984,6 +2022,19 @@ textarea {
   font-size: 10px;
   color: var(--secondary);
 }
+.week-workload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 3px;
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--secondary);
+}
+.week-starting {
+  color: var(--teal);
+}
 .task-check {
   flex: 1;
   min-width: 0;
@@ -2012,7 +2063,7 @@ textarea {
   border-radius: 4px;
   color: #6d7c61;
   background: #f5f7f0;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 400;
   padding: 0 5px;
   line-height: 16px;
@@ -2477,7 +2528,8 @@ textarea {
     flex-wrap: wrap;
   }
   .task-row > .task-check,
-  .task-row > .task-description {
+  .task-row > .task-description,
+  .task-row > .task-start-entry {
     flex: 1 1 calc(100% - 38px);
     order: 0;
   }
@@ -2766,7 +2818,7 @@ textarea {
     padding: 12px;
   }
   .optional-tag {
-    font-size: 7px;
+    font-size: 9px;
     padding-left: 4px;
     padding-right: 4px;
   }

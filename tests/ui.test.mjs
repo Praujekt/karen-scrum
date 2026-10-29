@@ -283,7 +283,7 @@ test(
     await dialog.getByLabel("Activity Name").fill("Additional family meeting");
     await dialog.getByLabel("Plan Week").selectOption("2");
     await dialog.getByLabel("Activity Due Date").fill("2026-12-08");
-    await dialog.getByLabel("Optional / if Necessary").check();
+    await dialog.getByLabel("Only If Needed", { exact: true }).check();
     await dialog
       .getByRole("button", { name: "Add Activity", exact: true })
       .click();

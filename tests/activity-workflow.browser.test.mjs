@@ -185,9 +185,79 @@ async function assertFits(page, message) {
     message,
   );
 }
+function endpoint(page, kind, id, stage) {
+  return page.locator(
+    `.${kind}-row[data-task-id="${id}"][data-endpoint="${stage}"]`,
+  );
+}
+async function assertEndpoints(page, kind, task) {
+  const start = endpoint(page, kind, task.id, "start");
+  const end = endpoint(page, kind, task.id, "end");
+  const escapePattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert.equal(
+    await page.locator(`.${kind}-row[data-task-id="${task.id}"]`).count(),
+    2,
+  );
+  assert.match(
+    await start.innerText(),
+    new RegExp(escapePattern(task.title) + " \\(Start\\)"),
+  );
+  assert.match(
+    await end.innerText(),
+    new RegExp(escapePattern(task.title) + " \\(End\\)"),
+  );
+  for (const [row, week] of [
+    [start, task.week],
+    [end, task.endWeek],
+  ]) {
+    assert.equal(
+      await row.evaluate((element) =>
+        element.closest("section").querySelector("h2").textContent.trim(),
+      ),
+      "Week " + week,
+    );
+  }
+  assert.equal(
+    await start.locator("[data-task-check], [data-task-written]").count(),
+    0,
+    "The Start marker does not create a second completion step.",
+  );
+  if (kind === "task") {
+    assert.equal(await end.locator("[data-task-check]").count(), 1);
+    assert.equal(
+      await end.locator("[data-task-written]").count(),
+      task.requiresSubmission ? 1 : 0,
+    );
+    assert.match(
+      await start.innerText(),
+      task.done
+        ? /Activity completed\./
+        : new RegExp("End entry in Week " + task.endWeek),
+    );
+  }
+  return { start, end };
+}
+async function assertEndpointCompletion(page, task, done) {
+  for (const stage of ["start", "end"]) {
+    assert.equal(
+      await endpoint(page, "task", task.id, stage).evaluate((element) =>
+        element.classList.contains("is-done"),
+      ),
+      done,
+      `The ${stage} marker reflects the one underlying completion state.`,
+    );
+  }
+}
+function calendarLabel(iso) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(iso + "T12:00:00Z"));
+}
 
 test(
-  "week ranges and separate Written/Submitted stages remain independent across templates and cases",
+  "Start/End markers and Written/Submitted stages remain one activity across templates and cases",
   options,
   async (t) => {
     const { page, dialog, errors, external } = await workspace(t);
@@ -235,11 +305,28 @@ test(
       .getByLabel("Activity Name", { exact: true })
       .fill("Release form");
     await dialog.getByLabel("Plan Week", { exact: true }).selectOption("2");
+    await dialog.getByLabel("Only If Needed", { exact: true }).check();
     await dialog
       .getByRole("button", { name: "Add Activity", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
     const original = await template(page, "Extended Reports");
+    await assertEndpoints(page, "template", original.activities[0]);
+    assert.equal(await page.locator(".template-row").count(), 3);
+    assert.equal(
+      await endpoint(
+        page,
+        "template",
+        original.activities[1].id,
+        "single",
+      ).count(),
+      1,
+    );
+    await screenshot(page, "activity-endpoints-template-desktop");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await assertFits(page, "Template Start/End entries fit a phone viewport.");
+    await screenshot(page, "activity-endpoints-template-mobile");
+    await page.setViewportSize({ width: 1365, height: 900 });
     assert.deepEqual(
       original.activities.map((activity) => [
         activity.title,
@@ -266,6 +353,7 @@ test(
     assert.notEqual(copied.activities[0].id, original.activities[0].id);
     assert.equal(copied.activities[0].endWeek, 5);
     assert.equal(copied.activities[0].requiresSubmission, true);
+    await assertEndpoints(page, "template", copied.activities[0]);
     const dueDate = await page.evaluate(() =>
       WWModel.addDays(WWModel.today(), 40),
     );
@@ -282,6 +370,55 @@ test(
     );
     assert.equal(first.tasks[0].written, false);
     assert.equal(first.tasks[0].done, false);
+    const firstEndpoints = await assertEndpoints(page, "task", first.tasks[0]);
+    const startDate = await page.evaluate(
+      (entry) => WWModel.activityStartDate(entry, entry.tasks[0]),
+      first,
+    );
+    assert.ok(
+      (await firstEndpoints.start.innerText()).includes(
+        calendarLabel(startDate),
+      ),
+    );
+    assert.ok(
+      (await firstEndpoints.end.innerText()).includes(calendarLabel(dueDate)),
+    );
+    assert.equal(
+      await page.locator(".task-row").count(),
+      3,
+      "Two activities create two End controls and one Start marker.",
+    );
+    assert.equal(await page.locator("[data-task-check]").count(), 2);
+    assert.equal(await page.locator("[data-task-written]").count(), 1);
+    assert.equal(
+      await endpoint(page, "task", first.tasks[1].id, "single").count(),
+      1,
+    );
+    assert.equal(
+      await endpoint(page, "task", first.tasks[1].id, "single")
+        .locator(".optional-tag")
+        .innerText(),
+      "If Needed",
+    );
+    assert.match(
+      await firstEndpoints.start.locator("xpath=..").innerText(),
+      /1 Starting/,
+    );
+    assert.equal(
+      await firstEndpoints.start
+        .locator("xpath=..")
+        .locator(".week-done")
+        .innerText(),
+      "No Activities Due",
+      "The starting marker does not create a second due activity in Week 1.",
+    );
+    assert.equal(
+      await firstEndpoints.end
+        .locator("xpath=..")
+        .locator(".week-done")
+        .innerText(),
+      "0/1 Complete",
+    );
     assert.equal(
       first.tasks[1].dueDate,
       await page.evaluate((date) => WWModel.addDays(date, -21), dueDate),
@@ -338,6 +475,23 @@ test(
       await page.getByLabel("View Through", { exact: true }).inputValue(),
       await page.evaluate(() => WWModel.addDays(WWModel.today(), 7)),
     );
+    await page.getByLabel("View Through", { exact: true }).fill(dueDate);
+    await page.getByLabel("View Through", { exact: true }).press("Tab");
+    await page
+      .locator(".overview-activity")
+      .filter({ hasText: "Long report" })
+      .waitFor();
+    assert.deepEqual(
+      (await page.locator(".overview-activity-title").allTextContents()).sort(),
+      ["Long report", "Long report", "Release form"].sort(),
+      "The deadline list and one submission callout use the underlying title, not extra Start/End tasks.",
+    );
+    assert.equal(
+      await page.locator(".overview-activity").count(),
+      2,
+      "If Needed remains included and Start markers do not add deadlines.",
+    );
+    assert.equal(await page.locator(".overview-ready-item").count(), 1);
     await submit.click();
     await waitTask(page, "Range Patient A", "Long report", {
       written: true,
@@ -352,6 +506,7 @@ test(
       "Submitting an activity leaves case completion under her control.",
     );
     await openCase(page, "Range Patient A");
+    await assertEndpointCompletion(page, first.tasks[0], true);
     assert.equal(
       await page
         .locator(".timeline-summary .section-heading > strong")
@@ -386,6 +541,7 @@ test(
       written: true,
       done: false,
     });
+    await assertEndpointCompletion(page, first.tasks[0], false);
     await page
       .getByRole("checkbox", { name: "Mark Long report Written", exact: true })
       .uncheck();
@@ -403,6 +559,7 @@ test(
       written: true,
       done: true,
     });
+    await assertEndpointCompletion(page, first.tasks[0], true);
     await page
       .getByRole("checkbox", { name: "Mark Long report Written", exact: true })
       .uncheck();
@@ -410,7 +567,8 @@ test(
       written: false,
       done: false,
     });
-    await page
+    await assertEndpointCompletion(page, first.tasks[0], false);
+    await endpoint(page, "task", first.tasks[0].id, "start")
       .getByRole("button", { name: "Edit Long report", exact: true })
       .click();
     assert.equal(
@@ -430,10 +588,28 @@ test(
     await dialog
       .getByLabel("Activity Name", { exact: true })
       .fill("Case report only");
+    await dialog.getByLabel("Start Week", { exact: true }).selectOption("2");
+    await dialog.getByLabel("End Week", { exact: true }).selectOption("4");
     await dialog
       .getByRole("button", { name: "Save Activity", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
+    first = await record(page, "Range Patient A");
+    assert.equal(first.tasks[0].week, 2);
+    assert.equal(first.tasks[0].endWeek, 4);
+    assert.equal(
+      first.tasks[0].dueDate,
+      await page.evaluate((date) => WWModel.addDays(date, -7), dueDate),
+    );
+    await assertEndpoints(page, "task", first.tasks[0]);
+    assert.equal(
+      await page.getByText("Long report (Start)", { exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page.getByText("Long report (End)", { exact: true }).count(),
+      0,
+    );
     assert.equal(
       (await template(page, "Extended Reports")).activities[0].title,
       "Long report",
@@ -458,6 +634,25 @@ test(
     assert.equal(first.tasks[1].week, 1);
     assert.equal(first.tasks[1].endWeek, 5);
     assert.equal(first.tasks[1].dueDate, dueDate);
+    await assertEndpoints(page, "task", first.tasks[1]);
+    assert.equal(await page.locator(".task-row").count(), 4);
+    assert.equal(await page.locator("[data-task-check]").count(), 2);
+    await page
+      .getByRole("checkbox", { name: "Complete Release form", exact: true })
+      .check();
+    await waitTask(page, "Range Patient A", "Release form", { done: true });
+    await assertEndpointCompletion(page, first.tasks[1], true);
+    assert.equal(
+      await page
+        .locator(".timeline-summary .section-heading > strong")
+        .innerText(),
+      "50%",
+    );
+    await page
+      .getByRole("checkbox", { name: "Complete Release form", exact: true })
+      .uncheck();
+    await waitTask(page, "Range Patient A", "Release form", { done: false });
+    await assertEndpointCompletion(page, first.tasks[1], false);
     assert.equal(
       (await template(page, "Extended Reports")).activities[1].endWeek ?? 2,
       2,
@@ -479,16 +674,23 @@ test(
         exact: true,
       })
       .click();
-    await page
+    await endpoint(page, "template", original.activities[0].id, "end")
       .getByRole("button", { name: /^Edit Template Long report$/i })
       .click();
     await dialog
       .getByLabel("Activity Name", { exact: true })
       .fill("Revised template report");
+    await dialog.getByLabel("Start Week", { exact: true }).selectOption("2");
+    await dialog.getByLabel("End Week", { exact: true }).selectOption("4");
     await dialog
       .getByRole("button", { name: "Save Activity", exact: true })
       .click();
     await dialog.waitFor({ state: "hidden" });
+    await assertEndpoints(
+      page,
+      "template",
+      (await template(page, "Extended Reports")).activities[0],
+    );
     await page
       .locator(".sidebar")
       .getByRole("button", { name: /^All Cases\s*\d*$/ })
@@ -496,7 +698,13 @@ test(
     await createCase(page, "Range Patient B", "Extended Reports", dueDate);
     const second = await record(page, "Range Patient B");
     assert.equal(second.tasks[0].title, "Revised template report");
-    assert.equal(second.tasks[0].endWeek, 5);
+    assert.equal(second.tasks[0].week, 2);
+    assert.equal(second.tasks[0].endWeek, 4);
+    assert.equal(
+      second.tasks[0].dueDate,
+      await page.evaluate((date) => WWModel.addDays(date, -7), dueDate),
+    );
+    await assertEndpoints(page, "task", second.tasks[0]);
     assert.equal(second.tasks[0].written, false);
     assert.equal(second.tasks[0].done, false);
     assert.notEqual(first.tasks[0].id, second.tasks[0].id);
@@ -512,6 +720,40 @@ test(
       (await template(page, "Extended Reports Copy")).activities[0].title,
       "Long report",
     );
+    await library(page);
+    await page
+      .getByRole("button", {
+        name: "Select Template: Extended Reports Copy",
+        exact: true,
+      })
+      .click();
+    await assertEndpoints(page, "template", copied.activities[0]);
+    await endpoint(page, "template", copied.activities[0].id, "end")
+      .getByRole("button", { name: /^Edit Template Long report$/i })
+      .click();
+    await dialog
+      .getByRole("button", { name: "Remove Activity", exact: true })
+      .click();
+    await dialog
+      .getByRole("button", { name: "Remove Activity", exact: true })
+      .click();
+    await dialog.waitFor({ state: "hidden" });
+    assert.equal(
+      (await template(page, "Extended Reports Copy")).activities.length,
+      1,
+    );
+    assert.equal(
+      await page
+        .locator(`.template-row[data-task-id="${copied.activities[0].id}"]`)
+        .count(),
+      0,
+      "Removing from either endpoint removes the one template activity and both markers.",
+    );
+    assert.equal(
+      (await template(page, "Extended Reports")).activities.length,
+      2,
+    );
+    assert.equal((await record(page, "Range Patient B")).tasks.length, 2);
     await openCase(page, "Range Patient A");
     await page.reload();
     await page
@@ -534,10 +776,34 @@ test(
       "Week ranges and both activity stages fit a phone viewport.",
     );
     await screenshot(page, "activity-stages-mobile");
-    await page
+    await endpoint(page, "task", first.tasks[0].id, "end")
       .getByRole("button", { name: "Edit Case report only", exact: true })
       .click();
     await assertFits(page, "The activity editor fits a phone viewport.");
+    await dialog
+      .getByRole("button", { name: "Remove Activity", exact: true })
+      .click();
+    await dialog
+      .getByRole("button", { name: "Remove Activity", exact: true })
+      .click();
+    await dialog.waitFor({ state: "hidden" });
+    assert.deepEqual(
+      (await record(page, "Range Patient A")).tasks.map((task) => task.title),
+      ["Release form"],
+    );
+    assert.equal(
+      await page
+        .locator(`.task-row[data-task-id="${first.tasks[0].id}"]`)
+        .count(),
+      0,
+      "Removing a case activity through its End editor removes both entries.",
+    );
+    assert.equal(await page.locator("[data-task-check]").count(), 1);
+    assert.equal((await record(page, "Range Patient B")).tasks.length, 2);
+    assert.equal(
+      (await template(page, "Extended Reports")).activities.length,
+      2,
+    );
     assert.deepEqual(errors, []);
     assert.deepEqual(external, []);
   },
