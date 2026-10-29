@@ -1183,8 +1183,8 @@ hr {
 .activity-endpoint-label {
   margin-right: 5px;
   font-size: 10px;
-  font-weight: 600;
-  color: #526b5c;
+  font-weight: 500;
+  color: var(--secondary);
 }
 .activity-endpoint-label::after {
   content: ":";
@@ -1210,6 +1210,17 @@ hr {
   align-items: flex-start;
   flex-shrink: 0;
   gap: 5px;
+  align-self: stretch;
+  justify-content: center;
+  padding-right: 14px;
+  border-right: 1px solid #cbd5cb;
+}
+.task-row--staged .task-description {
+  gap: 16px;
+}
+.task-row--staged .task-title {
+  font-size: 14px;
+  font-weight: 650;
 }
 .task-stage-checks label {
   display: inline-flex;
@@ -1217,7 +1228,8 @@ hr {
   gap: 6px;
   padding: 2px 0;
   min-height: 22px;
-  font-size: 11px;
+  font-size: 10px;
+  color: var(--secondary);
   cursor: pointer;
 }
 .task-stage-checks label:has(input:checked) {
@@ -1245,7 +1257,8 @@ input[type="checkbox"] {
 .task-title {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 .task-title label {
@@ -2823,7 +2836,10 @@ textarea {
     gap: 8px;
   }
   .task-title {
-    font-size: 11px;
+    font-size: 12px;
+  }
+  .task-row--staged .task-title {
+    font-size: 13px;
   }
   .task-meta {
     font-size: 9px;
