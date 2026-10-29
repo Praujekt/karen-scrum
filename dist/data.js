@@ -90,7 +90,13 @@
       jsonSafety(value[key], depth + 1);
     }
   }
-  function validateTemplate(tasks) {
+  function weekCount(plan) {
+    const count = "weekCount" in plan ? plan.weekCount : 5;
+    if (!Number.isInteger(count) || count < 1 || count > 520)
+      fail("Invalid plan week count in backup.");
+    return count;
+  }
+  function validateTemplate(tasks, count = 5) {
     array(tasks, 1000, "template");
     unique(tasks, "template activity");
     for (const task of tasks) {
@@ -99,19 +105,19 @@
       if (
         !Number.isInteger(task.week) ||
         task.week < 1 ||
-        task.week > 5 ||
+        task.week > count ||
         typeof task.optional !== "boolean"
       )
         fail("Invalid template activity week or optional flag in backup.");
-      validateActivityOptions(task);
+      validateActivityOptions(task, count);
     }
   }
-  function validateActivityOptions(task) {
+  function validateActivityOptions(task, count = 5) {
     if (
       "endWeek" in task &&
       (!Number.isInteger(task.endWeek) ||
         task.endWeek < task.week ||
-        task.endWeek > 5)
+        task.endWeek > count)
     )
       fail("Invalid activity end week in backup.");
     if (
@@ -119,6 +125,12 @@
       typeof task.requiresSubmission !== "boolean"
     )
       fail("Invalid activity submission flag in backup.");
+    if ("mandatory" in task && typeof task.mandatory !== "boolean")
+      fail("Invalid activity mandatory flag in backup.");
+    if ("priority" in task && !["normal", "high"].includes(task.priority))
+      fail("Invalid activity priority in backup.");
+    if (task.mandatory && task.optional)
+      fail("A mandatory activity cannot also be marked If Needed.");
   }
   function validateSettings(settings) {
     if (!plain(settings)) fail("Invalid settings in backup.");
@@ -138,7 +150,7 @@
         const normalizedName = entry.name.trim().toLowerCase();
         if (names.has(normalizedName)) fail("Template names must be unique.");
         names.add(normalizedName);
-        validateTemplate(entry.activities);
+        validateTemplate(entry.activities, weekCount(entry));
         stamp(entry.createdAt, "template creation date");
         stamp(entry.updatedAt, "template update date");
       }
@@ -158,6 +170,7 @@
   function validateCase(record) {
     if (!plain(record)) fail("Invalid case in backup.");
     jsonSafety(record, 0);
+    const count = weekCount(record);
     id(record.id);
     string(record.name, 200, "patient name");
     if ("sourceTemplateId" in record) id(record.sourceTemplateId);
@@ -182,12 +195,12 @@
       if (
         !Number.isInteger(task.week) ||
         task.week < 1 ||
-        task.week > 5 ||
+        task.week > count ||
         typeof task.optional !== "boolean" ||
         typeof task.done !== "boolean"
       )
         fail("Invalid activity in backup.");
-      validateActivityOptions(task);
+      validateActivityOptions(task, count);
       if ("written" in task && typeof task.written !== "boolean")
         fail("Invalid activity written flag in backup.");
       if (task.requiresSubmission && task.done && task.written === false)

@@ -20,14 +20,6 @@
 .overview-window-copy h2 {
   font-size: 14px;
 }
-.overview-window-copy p,
-.overview-window-help {
-  font-size: 12px;
-  color: var(--secondary);
-}
-.overview-window-copy p {
-  margin-top: 3px;
-}
 .overview-window-icon {
   display: grid;
   place-items: center;
@@ -78,12 +70,6 @@
   background: #fff;
   color: var(--ink);
   font-size: 12px;
-}
-.overview-window-help {
-  flex-basis: 100%;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  font-size: 11px;
 }
 .overview-stats {
   display: grid;
@@ -171,14 +157,6 @@
 }
 .overview-section-heading h2 {
   font-size: 17px;
-}
-.overview-kicker {
-  margin-bottom: 5px;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 1.1px;
-  text-transform: uppercase;
-  color: var(--teal);
 }
 .overview-count {
   display: inline-grid;

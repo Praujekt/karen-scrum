@@ -4,6 +4,7 @@
   const DAY = 86400000;
   const TIME_ZONE = "America/Los_Angeles";
   const TIME_ZONE_LABEL = "Pacific Time";
+  const MAX_WEEKS = 520;
   const rows = [
     [1, "Assessment Plan Notification (teacher)"],
     [1, "Cumulative file review"],
@@ -99,6 +100,23 @@
     return activity.endWeek ?? activity.week;
   }
 
+  function getWeekCount(plan) {
+    const count = plan && plan.weekCount !== undefined ? plan.weekCount : 5;
+    if (!Number.isInteger(count) || count < 1 || count > MAX_WEEKS)
+      throw new Error(
+        "Choose a plan length from 1 to " + MAX_WEEKS + " weeks.",
+      );
+    return count;
+  }
+
+  function plannedStartDate(plan) {
+    return addDays(plan.dueDate, -(getWeekCount(plan) * 7 - 1));
+  }
+
+  function activityPriority(activity) {
+    return activity.mandatory ? 2 : activity.priority === "high" ? 1 : 0;
+  }
+
   function activitySpansWeeks(activity) {
     return activityEndWeek(activity) > activity.week;
   }
@@ -111,23 +129,36 @@
     );
   }
 
-  function validateActivityOptions(activity) {
+  function validateActivityOptions(activity, weekCount = 5) {
     if (
       !Number.isInteger(activity.week) ||
       activity.week < 1 ||
-      activity.week > 5
+      activity.week > weekCount
     )
-      throw new Error("Choose a week from 1 to 5 for every activity.");
+      throw new Error(
+        "Choose a week from 1 to " + weekCount + " for every activity.",
+      );
     if (
       activity.endWeek !== undefined &&
       (!Number.isInteger(activity.endWeek) ||
         activity.endWeek < activity.week ||
-        activity.endWeek > 5)
+        activity.endWeek > weekCount)
     )
-      throw new Error("Choose an end week from the start week through Week 5.");
-    for (const flag of ["optional", "requiresSubmission"])
+      throw new Error(
+        "Choose an end week from the start week through Week " +
+          weekCount +
+          ".",
+      );
+    for (const flag of ["optional", "requiresSubmission", "mandatory"])
       if (activity[flag] !== undefined && typeof activity[flag] !== "boolean")
         throw new Error("Choose a valid " + flag + " flag for every activity.");
+    if (
+      activity.priority !== undefined &&
+      !["normal", "high"].includes(activity.priority)
+    )
+      throw new Error("Choose a valid activity priority.");
+    if (activity.mandatory && activity.optional)
+      throw new Error("A mandatory activity cannot also be marked If Needed.");
   }
 
   /** Return a new activity while keeping Written and final completion consistent. */
@@ -151,7 +182,7 @@
     return next;
   }
 
-  function cloneTemplateActivities(activities, freshIds) {
+  function cloneTemplateActivities(activities, freshIds, weekCount = 5) {
     if (!Array.isArray(activities) || activities.length > 1000)
       throw new Error("A template may contain up to 1000 activities.");
     const ids = new Set();
@@ -165,7 +196,7 @@
         throw new Error(
           "Every template activity needs a title of up to 500 characters.",
         );
-      validateActivityOptions(activity);
+      validateActivityOptions(activity, weekCount);
       const id = freshIds ? uid() : activity.id;
       if (
         typeof id !== "string" ||
@@ -186,6 +217,12 @@
         ...(activity.requiresSubmission === undefined
           ? {}
           : { requiresSubmission: activity.requiresSubmission }),
+        ...(activity.priority === undefined
+          ? {}
+          : { priority: activity.priority }),
+        ...(activity.mandatory === undefined
+          ? {}
+          : { mandatory: activity.mandatory }),
       };
     });
   }
@@ -197,7 +234,12 @@
       return preferences.templates.map((entry) => ({
         id: entry.id,
         name: templateName(entry.name),
-        activities: cloneTemplateActivities(entry.activities, false),
+        weekCount: getWeekCount(entry),
+        activities: cloneTemplateActivities(
+          entry.activities,
+          false,
+          getWeekCount(entry),
+        ),
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       }));
@@ -207,6 +249,7 @@
       {
         id: "default",
         name: "Default",
+        weekCount: 5,
         activities: cloneTemplateActivities(
           preferences.template || template(),
           false,
@@ -228,13 +271,16 @@
 
   function newTemplate(options) {
     const input = options || {},
+      weekCount = getWeekCount(input),
       now = new Date().toISOString();
     return {
       id: uid(),
       name: templateName(input.name),
+      weekCount,
       activities: cloneTemplateActivities(
         input.activities === undefined ? [] : input.activities,
         true,
+        weekCount,
       ),
       createdAt: now,
       updatedAt: now,
@@ -247,29 +293,136 @@
     return newTemplate({
       name: name === undefined ? source.name + " Copy" : name,
       activities: source.activities,
+      weekCount: getWeekCount(source),
     });
   }
 
   /**
    * Return the end of a template week by counting backward from the final due date.
-   * Week 5 ends on dueDate; weeks 4, 3, 2, and 1 end 7, 14, 21, and 28 days earlier.
-   * The full planned schedule starts 34 days before dueDate. startDate records when
-   * the case opened and validates the case range; it never stretches or clamps tasks.
-   * A short runway therefore intentionally produces activity dates before startDate.
+   * The final week ends on dueDate; each earlier week ends seven days earlier.
+   * The default is five weeks. startDate records when the case opened and validates
+   * the case range; it never stretches or clamps tasks. A short runway therefore
+   * intentionally produces activity dates before startDate.
    */
-  function taskDue(startDate, dueDate, week) {
+  function taskDue(startDate, dueDate, week, weekCount = 5) {
+    getWeekCount({ weekCount });
     if (dateDiff(startDate, dueDate) < 0)
       throw new Error("The due date must be on or after the start date.");
-    if (!Number.isInteger(week) || week < 1 || week > 5)
-      throw new Error("Choose a week from 1 to 5.");
-    return addDays(dueDate, -(5 - week) * 7);
+    if (!Number.isInteger(week) || week < 1 || week > weekCount)
+      throw new Error("Choose a week from 1 to " + weekCount + ".");
+    return addDays(dueDate, -(weekCount - week) * 7);
   }
 
   function activityStartDate(record, activity) {
     return addDays(
-      taskDue(record.startDate, record.dueDate, activity.week),
+      taskDue(
+        record.startDate,
+        record.dueDate,
+        activity.week,
+        getWeekCount(record),
+      ),
       -6,
     );
+  }
+
+  function clonePlan(plan) {
+    return typeof root.structuredClone === "function"
+      ? root.structuredClone(plan)
+      : JSON.parse(JSON.stringify(plan));
+  }
+
+  function mapActivityWeeks(activity, mapWeek) {
+    return {
+      ...activity,
+      week: mapWeek(activity.week),
+      ...(activity.endWeek === undefined
+        ? {}
+        : { endWeek: mapWeek(activity.endWeek) }),
+    };
+  }
+
+  function compressedWeek(week, sourceCount, targetCount) {
+    return targetCount === 1 || sourceCount === 1
+      ? 1
+      : 1 + Math.round(((week - 1) * (targetCount - 1)) / (sourceCount - 1));
+  }
+
+  /** Adding weeks appends empty weeks; shortening redistributes every activity. */
+  function resizeTemplateWeeks(plan, targetCount) {
+    const sourceCount = getWeekCount(plan);
+    getWeekCount({ weekCount: targetCount });
+    cloneTemplateActivities(plan.activities, false, sourceCount);
+    const copy = clonePlan(plan);
+    copy.weekCount = targetCount;
+    if (targetCount < sourceCount)
+      copy.activities = copy.activities.map((activity) =>
+        mapActivityWeeks(activity, (week) =>
+          compressedWeek(week, sourceCount, targetCount),
+        ),
+      );
+    return copy;
+  }
+
+  /** Removing a week moves its work to a remaining week instead of dropping it. */
+  function removeTemplateWeek(plan, removedWeek) {
+    const sourceCount = getWeekCount(plan);
+    if (sourceCount === 1)
+      throw new Error("Keep at least one week in the template.");
+    if (
+      !Number.isInteger(removedWeek) ||
+      removedWeek < 1 ||
+      removedWeek > sourceCount
+    )
+      throw new Error("Choose an existing week to remove.");
+    cloneTemplateActivities(plan.activities, false, sourceCount);
+    const copy = clonePlan(plan),
+      targetCount = sourceCount - 1;
+    copy.weekCount = targetCount;
+    copy.activities = copy.activities.map((activity) =>
+      mapActivityWeeks(activity, (week) =>
+        week < removedWeek
+          ? week
+          : Math.min(week === removedWeek ? week : week - 1, targetCount),
+      ),
+    );
+    return copy;
+  }
+
+  /** Extend without moving existing work; condense backward from the final date. */
+  function resizeCaseWeeks(record, targetCount) {
+    const sourceCount = getWeekCount(record);
+    getWeekCount({ weekCount: targetCount });
+    cloneTemplateActivities(record.tasks, false, sourceCount);
+    taskDue(record.startDate, record.dueDate, sourceCount, sourceCount);
+    const copy = clonePlan(record);
+    if (targetCount === sourceCount) return copy;
+    copy.weekCount = targetCount;
+    if (targetCount > sourceCount) {
+      copy.dueDate = addDays(record.dueDate, (targetCount - sourceCount) * 7);
+      return copy;
+    }
+    copy.tasks = copy.tasks.map((activity) => {
+      const next = mapActivityWeeks(activity, (week) =>
+        compressedWeek(week, sourceCount, targetCount),
+      );
+      return {
+        ...next,
+        dueDate: taskDue(
+          copy.startDate,
+          copy.dueDate,
+          activityEndWeek(next),
+          targetCount,
+        ),
+      };
+    });
+    return copy;
+  }
+
+  /** The dedicated condense action accepts only shorter plans. */
+  function condenseCase(record, targetCount) {
+    if (targetCount >= getWeekCount(record))
+      throw new Error("Choose fewer weeks than the current case plan.");
+    return resizeCaseWeeks(record, targetCount);
   }
 
   function createCase(options) {
@@ -278,10 +431,14 @@
     if (!name || name.length > 200)
       throw new Error("Enter a patient name of up to 200 characters.");
     const startDate = input.startDate || today();
-    const dueDate = input.dueDate || addDays(startDate, 34);
+    const weekCount = getWeekCount(input);
+    const dueDate = input.dueDate || addDays(startDate, weekCount * 7 - 1);
     if (dateDiff(startDate, dueDate) < 0)
       throw new Error("The due date must be on or after the start date.");
-    const tasks = input.template || template();
+    const tasks =
+      input.template ||
+      resizeTemplateWeeks({ weekCount: 5, activities: template() }, weekCount)
+        .activities;
     if (!Array.isArray(tasks) || tasks.length > 1000)
       throw new Error("Choose a valid activity template.");
     const now = new Date().toISOString();
@@ -293,12 +450,13 @@
       name,
       startDate,
       dueDate,
+      weekCount,
       status: "open",
-      tasks: cloneTemplateActivities(tasks, true).map((task) => ({
+      tasks: cloneTemplateActivities(tasks, true, weekCount).map((task) => ({
         ...task,
         written: false,
         done: false,
-        dueDate: taskDue(startDate, dueDate, activityEndWeek(task)),
+        dueDate: taskDue(startDate, dueDate, activityEndWeek(task), weekCount),
       })),
       notes,
       attachments: [],
@@ -468,6 +626,7 @@
   const api = {
     TIME_ZONE,
     TIME_ZONE_LABEL,
+    MAX_WEEKS,
     uid,
     today,
     addDays,
@@ -478,6 +637,13 @@
     newTemplate,
     copyTemplate,
     taskDue,
+    getWeekCount,
+    plannedStartDate,
+    activityPriority,
+    resizeTemplateWeeks,
+    removeTemplateWeek,
+    resizeCaseWeeks,
+    condenseCase,
     activityEndWeek,
     activitySpansWeeks,
     activityStartDate,

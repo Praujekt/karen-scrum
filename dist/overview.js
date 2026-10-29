@@ -214,18 +214,14 @@
       button("new-case", icon("plus") + " New Case", "primary") +
       '</div></header><section class="overview-window" aria-label="Deadline Window"><div class="overview-window-copy"><span class="overview-window-icon" aria-hidden="true">' +
       icon("calendar") +
-      '</span><div><h2>Your Deadline Window</h2><p>Includes unfinished activities and case deadlines up to this date.</p></div></div><div class="overview-window-controls"><div class="overview-presets" role="group" aria-label="Deadline Window Presets">' +
+      '</span><h2>Your Deadline Window</h2></div><div class="overview-window-controls"><div class="overview-presets" role="group" aria-label="Deadline Window Presets">' +
       presets +
       '</div><div class="overview-date-field"><label for="overview-through">View Through</label><input type="date" id="overview-through" value="' +
       esc(throughDate) +
-      '" aria-describedby="overview-window-help"></div></div><p class="overview-window-help" id="overview-window-help">Past-due work stays visible in your selected window. Dates follow Pacific Time.</p></section><section class="overview-stats" aria-label="Activities in Your Deadline Window"><article class="overview-stat' +
+      '"></div></div></section><section class="overview-stats" aria-label="Activities in Your Deadline Window"><article class="overview-stat' +
       (overdue ? " overview-stat--overdue" : " overview-stat--quiet") +
       '"><div class="overview-stat-heading"><span class="overview-signal" aria-hidden="true"></span><h2>Overdue Activities</h2></div><p class="overview-stat-value">' +
       overdue +
-      '</p><p class="overview-stat-caption">' +
-      (overdue
-        ? "Past their due date. Start here."
-        : "No overdue work in this window.") +
       '</p></article><article class="overview-stat' +
       (dueToday ? " overview-stat--today" : " overview-stat--quiet") +
       '"><div class="overview-stat-heading">' +
@@ -234,18 +230,16 @@
       dueToday +
       '</p><p class="overview-stat-caption">' +
       esc(fmt(today)) +
-      (throughDate < today
-        ? " is outside this window."
-        : " · Activities to finish today.") +
+      (throughDate < today ? " is outside this window." : "") +
       '</p></article><article class="overview-stat overview-stat--total"><div class="overview-stat-heading">' +
       icon("calendar") +
       '<h2>Due by Selected Date</h2></div><p class="overview-stat-value">' +
       upcoming.length +
       '</p><p class="overview-stat-caption">Through ' +
       esc(fmt(throughDate)) +
-      ' · Includes overdue activities.</p></article></section><div class="overview-columns"><section class="panel overview-deadlines" aria-labelledby="overview-deadlines-heading"><div class="overview-section-heading"><div><p class="overview-kicker">Your Next Steps</p><h2 id="overview-deadlines-heading">Upcoming Deadlines</h2></div><span class="overview-count">' +
+      '</p></article></section><div class="overview-columns"><section class="panel overview-deadlines" aria-labelledby="overview-deadlines-heading"><div class="overview-section-heading"><h2 id="overview-deadlines-heading">Upcoming Deadlines</h2><span class="overview-count">' +
       upcoming.length +
-      '</span></div><p class="overview-section-description">Unfinished activities, with the earliest due dates first.</p>' +
+      "</span></div>" +
       (upcoming.length
         ? '<div class="overview-date-groups">' +
           Array.from(groups).map(dateGroup).join("") +
@@ -257,21 +251,21 @@
             ? "Your unfinished activities are due later. Choose a later date to see what is coming."
             : "Add a case to see the work ahead, or find past cases under Completed.") +
           "</p></div>") +
-      '</section><aside class="overview-aside" aria-label="Submission and Case Deadlines"><section class="panel overview-ready" aria-labelledby="overview-ready-heading"><div class="overview-section-heading"><div><p class="overview-kicker">One More Step</p><h2 id="overview-ready-heading">Written, Not Submitted</h2></div><span class="overview-count">' +
+      '</section><aside class="overview-aside" aria-label="Submission and Case Deadlines"><section class="panel overview-ready" aria-labelledby="overview-ready-heading"><div class="overview-section-heading"><h2 id="overview-ready-heading">Written, Not Submitted</h2><span class="overview-count">' +
       written.length +
-      '</span></div><p class="overview-section-description">All written activities awaiting submission, including those beyond your selected date.</p>' +
+      '</span></div><p class="overview-section-description">Across all dates.</p>' +
       (written.length
         ? '<ul class="overview-ready-list">' +
           written.map(readyRow).join("") +
           "</ul>"
         : '<div class="overview-ready-empty">' +
           icon("check") +
-          "<p>Nothing is waiting to be submitted. Activities appear here when you mark them Written.</p></div>") +
-      '</section><section class="panel overview-case-deadlines" aria-labelledby="overview-case-heading"><div class="overview-section-heading"><div><p class="overview-kicker">Final Due Dates</p><h2 id="overview-case-heading">Case Deadlines</h2></div><span class="overview-count">' +
+          "<p>Nothing awaiting submission.</p></div>") +
+      '</section><section class="panel overview-case-deadlines" aria-labelledby="overview-case-heading"><div class="overview-section-heading"><h2 id="overview-case-heading">Case Deadlines</h2><span class="overview-count">' +
       caseDeadlines.length +
-      '</span></div><p class="overview-section-description">Active cases due by ' +
+      '</span></div><p class="overview-section-description">Through ' +
       esc(fmt(throughDate)) +
-      ", even when all their activities are checked off.</p>" +
+      ".</p>" +
       (caseDeadlines.length
         ? '<ul class="overview-case-list">' +
           caseDeadlines.map(caseDeadline).join("") +

@@ -1192,18 +1192,6 @@ hr {
 .template-row .task-title {
   font-size: inherit;
 }
-.activities-heading {
-  align-items: flex-start;
-}
-.activities-guidance {
-  max-width: 580px;
-}
-.activities-guidance .form-help {
-  margin-bottom: 0;
-}
-.template-conditional-help {
-  margin: 12px 0;
-}
 .task-stage-checks {
   display: flex;
   flex-direction: column;
@@ -1980,10 +1968,6 @@ textarea {
   background: #e1ebd8;
   border-color: #d2dfc7;
 }
-.timeline-summary .form-help {
-  margin-top: 0;
-  font-size: 10px;
-}
 .info-grid {
   margin: 0;
   grid-template-columns: 1fr;
@@ -2079,6 +2063,51 @@ textarea {
   margin-left: 7px;
   vertical-align: 1px;
   text-decoration: none;
+}
+.activity-importance-tag {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 6px;
+  border: 1px solid #c7d9cd;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #345b49;
+  background: #eaf2ec;
+  vertical-align: 1px;
+}
+.activity-importance-tag--priority {
+  color: #815622;
+  border-color: #e5d1a9;
+  background: #fbf3df;
+}
+.planning-case-toolbar {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.planning-case-toolbar .header-actions {
+  flex-wrap: wrap;
+}
+.planning-week-actions,
+.planning-week-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planning-week-actions {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.planning-week-input input {
+  flex: 1;
+  min-width: 0;
+}
+.planning-week-input .button {
+  flex-shrink: 0;
+}
+.schedule-preview-weeks {
+  max-height: 260px;
+  overflow-y: auto;
 }
 .task-row.is-done .optional-tag {
   text-decoration: none !important;

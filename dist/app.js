@@ -18,7 +18,8 @@
     route = "overview",
     selectedId = null,
     selectedTemplateId = null,
-    overviewSelectedDate = null;
+    overviewSelectedDate = null,
+    timelineEditor = null;
   let filter = "active",
     query = "",
     detailTab = "activities",
@@ -583,7 +584,7 @@
             : "A Clearer Caseload Starts Here",
           cases.length
             ? "Try another filter or patient name."
-            : "Add your first patient to turn a final due date into a clear, five-week plan.",
+            : "Add your first patient to plan backward from a final due date.",
           cases.length
             ? ""
             : button(
@@ -621,7 +622,9 @@
       '<section class="panel workload-panel"><div class="section-heading"><h2>The Weekly Picture</h2>' +
       icon("leaf") +
       '</div><p class="muted small">Unfinished activities by due week</p><div class="week-strip">' +
-      [1, 2, 3, 4, 5]
+      planWeeks({
+        weekCount: Math.max(1, ...activeCases().map(M.getWeekCount)),
+      })
         .map((w) => {
           const total = activeCases()
               .flatMap((c) => c.tasks)
@@ -731,7 +734,7 @@
       "%</strong></div>" +
       progress(c) +
       '<div class="timeline-weeks">' +
-      [1, 2, 3, 4, 5]
+      planWeeks(c)
         .map((w) => {
           const ts = c.tasks.filter((t) => M.activityEndWeek(t) === w),
             done = ts.filter((t) => t.done).length;
@@ -741,16 +744,14 @@
             '"><span>Week ' +
             w +
             "</span><strong>" +
-            fmt(M.taskDue(c.startDate, c.dueDate, w)) +
+            fmt(M.taskDue(c.startDate, c.dueDate, w, M.getWeekCount(c))) +
             "</strong><small>" +
             (ts.length ? done + "/" + ts.length + " Complete" : "Nothing Due") +
             "</small></div>"
           );
         })
         .join("") +
-      '</div><p class="form-help">Weekly target dates work backward from ' +
-      fmt(c.dueDate) +
-      '. Each activity date can be changed. Week totals count activities ending that week.</p></div><div class="detail-tabs tabs" role="tablist" aria-label="Case Information">' +
+      '</div></div><div class="detail-tabs tabs" role="tablist" aria-label="Case Information">' +
       [
         ["activities", "Activities", c.tasks.length],
         ["notes", "Notes", c.notes.length],
@@ -801,7 +802,7 @@
       '">' +
       (c.status === "completed" ? "Case Completed" : dueText(c.dueDate)) +
       '</dd></div><div class="info-item"><dt>Planned Start</dt><dd>' +
-      fmt(M.addDays(c.dueDate, -34)) +
+      fmt(M.plannedStartDate(c)) +
       '</dd></div><div class="info-item"><dt>Activities Complete</dt><dd>' +
       p.done +
       " of " +
@@ -809,11 +810,9 @@
       '</dd></div><div class="info-item"><dt>Template</dt><dd>' +
       esc(c.sourceTemplateName || "Default") +
       "</dd></div></dl>" +
-      (c.startDate > M.addDays(c.dueDate, -34)
-        ? '<div class="notice"><span>This case opened after the five-week plan starts. Review early activity dates for a shorter timeline.</span></div>'
+      (c.startDate > M.plannedStartDate(c)
+        ? '<div class="notice"><span>Some planned dates fall before this case opened.</span></div>'
         : "") +
-      '</section><section class="tip-card"><h3>Every Case Has Its Own Pace.</h3><p>Add or remove activities and edit their dates to fit this patient. Remove any If Needed activities that do not apply.</p>' +
-      button("add-task", icon("plus") + " Add Activity", "secondary small") +
       '</section><div class="case-updated">Last updated ' +
       stamp(c.updatedAt) +
       "</div>" +
@@ -845,14 +844,24 @@
     );
   }
   function ifNeededTag(task) {
-    return task.optional
-      ? '<span class="optional-tag" title="Conditional activity: complete it if it applies, or remove it from this case.">If Needed</span>'
-      : "";
+    if (task.mandatory)
+      return '<span class="activity-importance-tag activity-importance-tag--mandatory">Mandatory</span>';
+    if (task.priority === "high")
+      return (
+        '<span class="activity-importance-tag activity-importance-tag--priority">High Priority</span>' +
+        (task.optional ? '<span class="optional-tag">If Needed</span>' : "")
+      );
+    return task.optional ? '<span class="optional-tag">If Needed</span>' : "";
   }
   function taskRow(c, task, endpoint) {
     const isStart = endpoint === "start",
       today = M.today(),
-      startTarget = M.taskDue(c.startDate, c.dueDate, task.week),
+      startTarget = M.taskDue(
+        c.startDate,
+        c.dueDate,
+        task.week,
+        M.getWeekCount(c),
+      ),
       startWindowEnd = startTarget < task.dueDate ? startTarget : task.dueDate,
       showStartWindow =
         isStart &&
@@ -946,14 +955,17 @@
   }
   function tasksView(c) {
     return (
-      '<div class="section-heading activities-heading"><div class="activities-guidance"><p class="muted small">Check off each activity as it is finished. Multi-week activities show Starting Week and Ending Week; completion is recorded at Ending Week.</p>' +
-      (c.tasks.some((task) => task.optional)
-        ? '<p class="form-help"><strong>If Needed</strong> means a conditional activity. It still counts toward progress and due lists. If it does not apply, use Edit Activity to remove it from this case.</p>'
-        : "") +
-      "</div>" +
+      '<div class="section-heading planning-case-toolbar"><h2>Weekly Plan</h2><div class="header-actions">' +
+      button("edit-timeline", "Edit Timeline", "secondary small") +
+      button(
+        "condense-timeline",
+        "Condense Timeline",
+        "secondary small",
+        M.getWeekCount(c) <= 1 ? "disabled" : "",
+      ) +
       button("add-task", icon("plus") + " Add Activity", "secondary small") +
-      "</div>" +
-      [1, 2, 3, 4, 5]
+      "</div></div>" +
+      planWeeks(c)
         .map((w) => {
           const tasks = c.tasks
             .filter((t) => t.week === w || M.activityEndWeek(t) === w)
@@ -963,7 +975,9 @@
                   ? M.activityStartDate(c, task)
                   : task.dueDate;
               return (
-                date(a).localeCompare(date(b)) || a.title.localeCompare(b.title)
+                date(a).localeCompare(date(b)) ||
+                M.activityPriority(b) - M.activityPriority(a) ||
+                a.title.localeCompare(b.title)
               );
             });
           const finishing = tasks.filter(
@@ -978,9 +992,9 @@
             "</span><h2>Week " +
             w +
             '</h2><span class="week-range">' +
-            fmt(M.addDays(c.dueDate, -34 + (w - 1) * 7)) +
+            fmt(M.addDays(M.plannedStartDate(c), (w - 1) * 7)) +
             " – " +
-            fmt(M.taskDue(c.startDate, c.dueDate, w)) +
+            fmt(M.taskDue(c.startDate, c.dueDate, w, M.getWeekCount(c))) +
             '</span><span class="week-workload">' +
             (starting.length
               ? '<span class="week-starting">' +
@@ -999,7 +1013,14 @@
               ? tasks
                   .map((task) => taskRow(c, task, activityEndpoint(task, w)))
                   .join("")
-              : '<p class="empty-week">No activities start or finish this week.</p>') +
+              : '<div class="empty-week">' +
+                button(
+                  "add-task",
+                  "+ Add to Week " + w,
+                  "ghost small",
+                  'data-week="' + w + '"',
+                ) +
+                "</div>") +
             "</section>"
           );
         })
@@ -1188,6 +1209,12 @@
     selectedTemplateId = chosen.id;
     return chosen;
   }
+  function planWeeks(plan) {
+    return Array.from(
+      { length: M.getWeekCount(plan) },
+      (_, index) => index + 1,
+    );
+  }
   async function saveTemplateLibrary(library) {
     const { template: legacyTemplate, ...preferences } = settings;
     const defaultId = M.getDefaultTemplateId({
@@ -1200,7 +1227,7 @@
       defaultTemplateId: defaultId,
     });
   }
-  async function updateTemplateActivities(id, activities) {
+  async function updateTemplateActivities(id, activities, weekCount) {
     const library = templateLibrary(),
       index = library.findIndex((entry) => entry.id === id);
     if (index < 0)
@@ -1208,6 +1235,7 @@
     library[index] = {
       ...library[index],
       activities,
+      ...(weekCount === undefined ? {} : { weekCount }),
       updatedAt: new Date().toISOString(),
     };
     await saveTemplateLibrary(library);
@@ -1320,7 +1348,7 @@
         .join("") +
       '</div></aside><section class="template-editor"><div class="section-heading template-editor-heading"><div><h2>' +
       esc(selected.name) +
-      '</h2><p class="form-help">Changes here apply to future cases. Existing cases keep their own plans.</p></div><div class="header-actions">' +
+      '</h2><p class="form-help">Changes apply to new cases.</p></div><div class="header-actions">' +
       button(
         "copy-template",
         icon("file") + " Copy Template",
@@ -1341,23 +1369,25 @@
             "danger small",
           )) +
       button("template-add", icon("plus") + " Add Activity", "primary small") +
-      '</div></div><div class="notice">' +
-      icon("calendar") +
-      "<span><strong>Five weeks, planned backward.</strong> Week 5 ends on the final deadline. Each earlier week ends 7 days before the next. Multi-week activities show Starting Week and Ending Week.</span></div>" +
-      (ts.some((task) => task.optional)
-        ? '<p class="form-help template-conditional-help"><strong>If Needed</strong> activities are conditional. New cases include them; remove any that do not apply from that case. The saved template stays unchanged.</p>'
-        : "") +
+      "</div></div>" +
+      window.KLPlanning.templateToolbar({
+        template: selected,
+        model: M,
+        button,
+        icon,
+      }) +
       '<div class="template-grid">' +
-      [1, 2, 3, 4, 5]
+      planWeeks(selected)
         .map(
           (w) =>
             '<section class="panel"><div class="section-heading"><h2>Week ' +
             w +
             '</h2><span class="muted small">' +
-            (5 - w) * 7 +
+            (M.getWeekCount(selected) - w) * 7 +
             ' days before due</span></div><div class="template-list">' +
             ts
               .filter((t) => t.week === w || M.activityEndWeek(t) === w)
+              .sort((a, b) => M.activityPriority(b) - M.activityPriority(a))
               .map(
                 (t) =>
                   '<div class="template-row" data-task-id="' +
@@ -1381,14 +1411,20 @@
                   "</button></div>",
               )
               .join("") +
-            "</div>" +
+            '</div><div class="planning-week-actions">' +
             button(
               "template-add",
               "+ Add to Week " + w,
               "ghost small",
               'data-week="' + w + '"',
             ) +
-            "</section>",
+            window.KLPlanning.weekActions({
+              week: w,
+              weekCount: M.getWeekCount(selected),
+              button,
+              icon,
+            }) +
+            "</div></section>",
         )
         .join("") +
       '</div><div class="form-actions">' +
@@ -1904,12 +1940,97 @@
       workspaceWrite,
     );
   }
+  function timelineModal(condensing) {
+    const record = structuredClone(currentCase());
+    if (condensing && M.getWeekCount(record) <= 1) return;
+    timelineEditor = { record, mode: condensing ? "condense" : "edit" };
+    const options = { ...timelineEditor, model: M, esc, fmt };
+    showModal(
+      condensing ? "Condense Timeline" : "Edit Timeline",
+      window.KLPlanning.condenseBody(options),
+      '<button type="submit" class="button primary">' +
+        (condensing ? "Condense Timeline" : "Save Timeline") +
+        "</button>",
+      async (fd) => {
+        const latest = cases.find((entry) => entry.id === record.id);
+        if (!latest || latest.updatedAt !== record.updatedAt)
+          throw new Error("This case changed. Reopen the timeline editor.");
+        const count = Number(fd.get("weekCount")),
+          revised = condensing
+            ? M.condenseCase(latest, count)
+            : M.resizeCaseWeeks(latest, count);
+        await saveCase(revised);
+        closeModal();
+        render();
+        toast("Timeline updated. All activities kept.");
+      },
+      true,
+    );
+    updateTimelinePreview();
+  }
+  function updateTimelinePreview() {
+    const host = modal.querySelector("#condense-preview"),
+      field = modal.querySelector("#condense-weeks");
+    if (!host || !field || !timelineEditor) return;
+    const targetWeeks = Number(field.value),
+      maximum =
+        timelineEditor.mode === "condense"
+          ? M.getWeekCount(timelineEditor.record) - 1
+          : M.MAX_WEEKS;
+    if (
+      !Number.isInteger(targetWeeks) ||
+      targetWeeks < 1 ||
+      targetWeeks > maximum
+    ) {
+      host.innerHTML = "";
+      return;
+    }
+    host.innerHTML =
+      (targetWeeks < M.getWeekCount(timelineEditor.record)
+        ? '<p class="planning-note">Custom activity dates will be rescheduled.</p>'
+        : "") +
+      window.KLPlanning.condensePreview({
+        ...timelineEditor,
+        targetWeeks,
+        model: M,
+        esc,
+        fmt,
+      });
+  }
+  function templateWeeksModal() {
+    const chosen = selectedTemplate();
+    showModal(
+      "Set Weeks",
+      '<div class="field"><label for="template-week-count">Number of Weeks</label><input id="template-week-count" name="weekCount" type="number" min="1" max="' +
+        M.MAX_WEEKS +
+        '" step="1" required value="' +
+        M.getWeekCount(chosen) +
+        '"></div><p class="form-help">All activities are kept. Existing cases stay unchanged.</p>',
+      '<button type="submit" class="button primary">Set Weeks</button>',
+      async (fd) => {
+        const library = templateLibrary(),
+          index = library.findIndex((entry) => entry.id === chosen.id);
+        if (index < 0) throw new Error("This template is no longer available.");
+        library[index] = M.resizeTemplateWeeks(
+          library[index],
+          Number(fd.get("weekCount")),
+        );
+        await saveTemplateLibrary(library);
+        closeModal();
+        render();
+        toast("Template weeks updated. All activities kept.");
+      },
+    );
+  }
   function caseModal(editing) {
     const c = editing ? currentCase() : null,
-      start = c ? c.startDate : M.today(),
-      due = c ? c.dueDate : M.addDays(start, 34),
       library = templateLibrary(),
-      defaultTemplateId = M.getDefaultTemplateId(settings);
+      defaultTemplateId = M.getDefaultTemplateId(settings),
+      defaultPlan = library.find((entry) => entry.id === defaultTemplateId),
+      start = c ? c.startDate : M.today(),
+      due = c
+        ? c.dueDate
+        : M.addDays(start, M.getWeekCount(defaultPlan) * 7 - 1);
     showModal(
       editing ? "Edit Case" : "A New Case, a Clear Plan",
       '<div class="field"><label for="patient-name">Patient Name <span class="required">*</span></label><input id="patient-name" name="name" maxlength="200" required autocomplete="off" value="' +
@@ -1930,7 +2051,11 @@
                   "</option>",
               )
               .join("") +
-            '</select><p class="form-help">This case gets its own copy. Changing its activities will not change the saved template.</p></div>') +
+            '</select></div><div class="field"><label for="case-week-count">Number of Weeks</label><input type="number" id="case-week-count" name="weekCount" min="1" max="' +
+            M.MAX_WEEKS +
+            '" step="1" required value="' +
+            M.getWeekCount(defaultPlan) +
+            '"></div>') +
         '<div class="form-grid"><div class="field"><label for="case-opened">Case Opened</label><input id="case-opened" name="startDate" type="date" required value="' +
         start +
         '"></div><div class="field"><label for="final-due">Final Due Date <span class="required">*</span></label><input id="final-due" name="dueDate" type="date" required value="' +
@@ -1938,7 +2063,7 @@
         '"></div></div><div class="schedule-preview" id="schedule-preview"></div>' +
         (editing
           ? '<div class="field"><label class="checkbox-label"><input type="checkbox" name="shift" checked> Shift Activity Dates When the Deadline Changes</label><p class="form-help">Moves every activity by the same number of days, preserving custom spacing.</p></div>'
-          : '<div class="field"><label for="initial-note">Initial Note <span class="muted">(optional)</span></label><textarea id="initial-note" name="notes" maxlength="50000" rows="3" placeholder="Anything useful to know about this case…"></textarea></div><p class="form-help">Weekly dates work backward from the final deadline. Every activity can be customized for this case.</p>'),
+          : '<div class="field"><label for="initial-note">Initial Note <span class="muted">(optional)</span></label><textarea id="initial-note" name="notes" maxlength="50000" rows="3" placeholder="Anything useful to know about this case…"></textarea></div>'),
       '<button type="submit" class="button primary">' +
         (editing ? "Save Case" : "Create Case") +
         "</button>",
@@ -1972,12 +2097,17 @@
             throw new Error(
               "This template is no longer available. Reopen the new case form and choose another template.",
             );
+          const casePlan = M.resizeTemplateWeeks(
+            chosen,
+            Number(fd.get("weekCount")),
+          );
           const fresh = M.createCase({
             name: fd.get("name"),
             startDate: fd.get("startDate"),
             dueDate: fd.get("dueDate"),
             notes: fd.get("notes"),
-            template: chosen.activities,
+            template: casePlan.activities,
+            weekCount: casePlan.weekCount,
             templateId: chosen.id,
             templateName: chosen.name,
           });
@@ -1997,32 +2127,36 @@
     const el = modal.querySelector("#schedule-preview");
     if (!el) return;
     const start = modal.querySelector("[name=startDate]").value,
-      due = modal.querySelector("[name=dueDate]").value;
+      due = modal.querySelector("[name=dueDate]").value,
+      weekCount = modal.querySelector("#case-week-count")
+        ? Number(modal.querySelector("#case-week-count").value)
+        : M.getWeekCount(currentCase());
     try {
-      const planStart = M.addDays(due, -34);
+      const plan = { startDate: start, dueDate: due, weekCount },
+        planStart = M.plannedStartDate(plan);
       el.innerHTML =
         '<div class="schedule-preview-title">' +
         icon("calendar") +
-        " Planned backward from " +
-        fmt(due) +
+        " Planned Start " +
+        fmt(planStart) +
+        " · " +
+        weekCount +
+        " Weeks" +
         '</div><div class="schedule-preview-weeks">' +
-        [1, 2, 3, 4, 5]
+        planWeeks(plan)
           .map(
             (w) =>
               "<span><small>Week " +
               w +
               "</small><strong>" +
-              fmt(M.taskDue(start, due, w)) +
+              fmt(M.taskDue(start, due, w, weekCount)) +
               "</strong></span>",
           )
           .join("") +
-        '</div><p class="form-help">Plan starts ' +
-        fmt(planStart) +
-        "." +
+        "</div>" +
         (start > planStart
-          ? " Early activities predate the case opening; adjust them for a shorter timeline."
-          : "") +
-        "</p>";
+          ? '<p class="form-help">Some planned dates fall before the case opened.</p>'
+          : "");
     } catch (_) {
       el.innerHTML =
         '<p class="form-help">Choose a deadline on or after the case opened date to see the plan.</p>';
@@ -2032,15 +2166,30 @@
     const c = template ? null : currentCase(),
       templateRecord = template ? selectedTemplate() : null,
       ts = template ? templateRecord.activities : c.tasks,
-      old = id ? ts.find((t) => t.id === id) : null;
+      old = id ? ts.find((t) => t.id === id) : null,
+      weekCount = M.getWeekCount(template ? templateRecord : c);
     showModal(
       old ? "Edit Activity" : "Add an Activity",
       '<div class="field"><label for="activity-title">Activity Name</label><input id="activity-title" name="title" maxlength="500" required value="' +
         esc(old ? old.title : "") +
-        '"></div><label class="checkbox-label activity-option"><input type="checkbox" id="activity-spans" name="spansWeeks"' +
+        '"></div><div class="field"><label for="activity-week-count">Available Weeks</label><div class="planning-week-input"><input type="number" id="activity-week-count" name="weekCount" min="' +
+        weekCount +
+        '" max="' +
+        M.MAX_WEEKS +
+        '" step="1" required value="' +
+        weekCount +
+        '" data-original-weeks="' +
+        weekCount +
+        '">' +
+        button(
+          "activity-add-week",
+          icon("plus") + " Add Week",
+          "secondary small",
+        ) +
+        '</div><p class="form-help" id="activity-expansion-preview" hidden></p></div><label class="checkbox-label activity-option"><input type="checkbox" id="activity-spans" name="spansWeeks"' +
         (old && M.activitySpansWeeks(old) ? " checked" : "") +
         '> Spans Multiple Weeks</label><div class="form-grid"><div class="field"><label id="activity-week-label" for="activity-week">Plan Week</label><select id="activity-week" name="week">' +
-        [1, 2, 3, 4, 5]
+        planWeeks({ weekCount })
           .map(
             (w) =>
               '<option value="' +
@@ -2053,7 +2202,7 @@
           )
           .join("") +
         '</select></div><div class="field" id="activity-end-field" hidden><label for="activity-end-week">End Week</label><select id="activity-end-week" name="endWeek">' +
-        [1, 2, 3, 4, 5]
+        planWeeks({ weekCount })
           .map(
             (w) =>
               '<option value="' +
@@ -2070,21 +2219,20 @@
         "</select></div>" +
         (!template
           ? '<div class="field"><label for="activity-due">Activity Due Date</label><input id="activity-due" type="date" name="dueDate" required value="' +
-            (old ? old.dueDate : M.taskDue(c.startDate, c.dueDate, week || 1)) +
+            (old
+              ? old.dueDate
+              : M.taskDue(c.startDate, c.dueDate, week || 1, weekCount)) +
             '"></div>'
           : "") +
-        '</div><p class="form-help" id="activity-range-help" hidden>A multi-week activity shows Starting Week and Ending Week. Complete it at Ending Week; it counts as one activity.</p><label class="checkbox-label activity-option"><input type="checkbox" name="requiresSubmission"' +
+        '</div><p class="form-help" id="activity-range-help" hidden>One activity, completed at Ending Week.</p><div class="field"><label for="activity-priority">Priority</label><select id="activity-priority" name="priority"><option value="normal">Normal</option><option value="high"' +
+        (old && old.priority === "high" ? " selected" : "") +
+        '>High Priority</option></select></div><label class="checkbox-label activity-option"><input type="checkbox" id="activity-mandatory" name="mandatory"' +
+        (old && old.mandatory ? " checked" : "") +
+        '> Mandatory Activity</label><label class="checkbox-label activity-option"><input type="checkbox" name="requiresSubmission"' +
         (old && old.requiresSubmission ? " checked" : "") +
-        '> Track Written and Submitted Separately</label><p class="form-help">Use two steps for activities that need a written draft and a final submission. Only Submitted counts as complete.</p><label class="checkbox-label activity-option"><input type="checkbox" name="optional" ' +
+        '> Track Written and Submitted Separately</label><p class="form-help">Only Submitted counts as complete.</p><label class="checkbox-label activity-option"><input type="checkbox" id="activity-optional" name="optional" ' +
         (old && old.optional ? "checked" : "") +
-        '> Only If Needed</label><p class="form-help">Use for a conditional activity, such as an ROI or ADOS. It still counts toward progress and due lists until completed or removed.' +
-        (template
-          ? " New cases include it; remove it from a case if it does not apply."
-          : " If it does not apply, remove it from this case without changing the template.") +
-        "</p>" +
-        (!template
-          ? '<p class="form-help">Set a date that fits this case. It can differ from the weekly target.</p>'
-          : ""),
+        '> Only If Needed</label><p class="form-help">Counts toward progress until completed or removed.</p>',
       (old
         ? button(
             template ? "template-delete" : "delete-task",
@@ -2105,7 +2253,9 @@
             ? Number(fd.get("endWeek"))
             : Number(fd.get("week")),
           requiresSubmission: fd.has("requiresSubmission"),
-          optional: fd.has("optional"),
+          mandatory: fd.has("mandatory"),
+          priority: fd.get("priority"),
+          optional: fd.has("optional") && !fd.has("mandatory"),
         };
         if (!t.title) throw new Error("Enter an activity name.");
         if (t.endWeek < t.week)
@@ -2116,7 +2266,11 @@
           );
           if (!latestTemplate)
             throw new Error("This template was removed on another device.");
-          const updated = latestTemplate.activities;
+          const expanded = M.resizeTemplateWeeks(
+              latestTemplate,
+              Number(fd.get("weekCount")),
+            ),
+            updated = expanded.activities;
           if (old) {
             const index = updated.findIndex((x) => x.id === old.id);
             if (index < 0)
@@ -2125,7 +2279,11 @@
               );
             updated[index] = t;
           } else updated.push(t);
-          await updateTemplateActivities(templateRecord.id, updated);
+          await updateTemplateActivities(
+            templateRecord.id,
+            updated,
+            expanded.weekCount,
+          );
         } else {
           const latest = cases.find((record) => record.id === c.id);
           if (!latest)
@@ -2141,14 +2299,14 @@
             : false;
           t.dueDate = fd.get("dueDate");
           M.dateDiff(t.dueDate, t.dueDate);
+          const copy = M.resizeCaseWeeks(latest, Number(fd.get("weekCount")));
           if (
             M.activitySpansWeeks(t) &&
-            t.dueDate < M.activityStartDate(latest, t)
+            t.dueDate < M.activityStartDate(copy, t)
           )
             throw new Error(
               "The activity due date must be on or after the start of its week range.",
             );
-          const copy = structuredClone(latest);
           if (old) copy.tasks[copy.tasks.findIndex((x) => x.id === old.id)] = t;
           else copy.tasks.push(t);
           await saveCase(copy);
@@ -2165,6 +2323,30 @@
       end = modal.querySelector("#activity-end-week"),
       spans = modal.querySelector("#activity-spans");
     if (!start || !end || !spans) return;
+    const countInput = modal.querySelector("#activity-week-count"),
+      count = Number(countInput.value),
+      originalWeeks = Number(countInput.dataset.originalWeeks);
+    if (
+      !Number.isInteger(count) ||
+      count < originalWeeks ||
+      count > M.MAX_WEEKS
+    )
+      return;
+    for (const select of [start, end]) {
+      const selected = select.value;
+      select.innerHTML = planWeeks({ weekCount: count })
+        .map(
+          (w) =>
+            '<option value="' +
+            w +
+            '"' +
+            (String(w) === selected ? " selected" : "") +
+            ">Week " +
+            w +
+            "</option>",
+        )
+        .join("");
+    }
     const week = Number(start.value);
     if (Number(end.value) < week) end.value = String(week);
     Array.from(end.options).forEach((option) => {
@@ -2176,12 +2358,21 @@
     document.getElementById("activity-end-field").hidden = !spans.checked;
     document.getElementById("activity-range-help").hidden = !spans.checked;
     const due = modal.querySelector("#activity-due");
+    const preview = modal.querySelector("#activity-expansion-preview");
+    preview.hidden = count === originalWeeks;
+    if (count > originalWeeks) {
+      preview.textContent = due
+        ? "Final Deadline: " +
+          fmt(M.resizeCaseWeeks(currentCase(), count).dueDate, true)
+        : count + " weeks in this template.";
+    }
     if (updateDueDate && due) {
-      const c = currentCase();
+      const c = M.resizeCaseWeeks(currentCase(), count);
       due.value = M.taskDue(
         c.startDate,
         c.dueDate,
         spans.checked ? Number(end.value) : week,
+        M.getWeekCount(c),
       );
     }
   }
@@ -2518,6 +2709,40 @@
     "new-template": () => templateMetadataModal("new"),
     "copy-template": () => templateMetadataModal("copy"),
     "edit-template": () => templateMetadataModal("edit"),
+    "template-set-weeks": templateWeeksModal,
+    "template-add-week": () =>
+      withWorkspaceWrite(async () => {
+        const chosen = selectedTemplate(),
+          library = templateLibrary(),
+          index = library.findIndex((entry) => entry.id === chosen.id);
+        library[index] = M.resizeTemplateWeeks(
+          library[index],
+          M.getWeekCount(chosen) + 1,
+        );
+        await saveTemplateLibrary(library);
+        render();
+        toast("Week added.");
+      }),
+    "template-remove-week": (el) => {
+      const chosen = selectedTemplate(),
+        week = Number(el.dataset.week);
+      confirmAction(
+        "Remove Week " + week + "?",
+        "All activities will be kept and moved into the remaining weeks. Existing cases stay unchanged.",
+        "Remove Week",
+        async () => {
+          const library = templateLibrary(),
+            index = library.findIndex((entry) => entry.id === chosen.id);
+          if (index < 0)
+            throw new Error("This template is no longer available.");
+          library[index] = M.removeTemplateWeek(library[index], week);
+          await saveTemplateLibrary(library);
+          closeModal();
+          render();
+          toast("Week removed. All activities kept.");
+        },
+      );
+    },
     "delete-template": () => {
       const chosen = selectedTemplate();
       if (chosen.id === "default")
@@ -2546,6 +2771,8 @@
     },
     "new-case": () => caseModal(false),
     "edit-case": () => caseModal(true),
+    "edit-timeline": () => timelineModal(false),
+    "condense-timeline": () => timelineModal(true),
     "close-modal": closeModal,
     "open-case": (el) => {
       selectedId = el.dataset.id;
@@ -2557,8 +2784,17 @@
       detailTab = el.dataset.tab;
       render();
     },
-    "add-task": () => taskModal(null, false),
+    "add-task": (el) => taskModal(null, false, Number(el.dataset.week) || 1),
     "edit-task": (el) => taskModal(el.dataset.id, false),
+    "activity-add-week": () => {
+      const field = modal.querySelector("#activity-week-count");
+      if (!field) return;
+      field.value = Math.min(
+        M.MAX_WEEKS,
+        Math.max(Number(field.min), Number(field.value)) + 1,
+      );
+      updateActivityEditor(false);
+    },
     "delete-task": (el) => {
       const id = el.dataset.id;
       confirmAction(
@@ -2717,7 +2953,7 @@
         "Replace Default's activities with the original 19 activities. Other templates and existing cases keep their own plans.",
         "Restore Template",
         async () => {
-          await updateTemplateActivities("default", M.template());
+          await updateTemplateActivities("default", M.template(), 5);
           closeModal();
           render();
         },
@@ -2925,8 +3161,12 @@
       query = event.target.value;
       document.getElementById("case-results").innerHTML = listContent();
     }
-    if (["final-due", "case-opened"].includes(event.target.id))
+    if (
+      ["final-due", "case-opened", "case-week-count"].includes(event.target.id)
+    )
       updateSchedulePreview();
+    if (event.target.id === "activity-week-count") updateActivityEditor(false);
+    if (event.target.id === "condense-weeks") updateTimelinePreview();
   });
   document.addEventListener("change", (event) => {
     serialize(() => {
@@ -2948,6 +3188,34 @@
   });
   async function handleChange(event) {
     const el = event.target;
+    if (el.id === "case-template") {
+      const chosen = templateLibrary().find((entry) => entry.id === el.value);
+      if (chosen)
+        modal.querySelector("#case-week-count").value = M.getWeekCount(chosen);
+      updateSchedulePreview();
+      return;
+    }
+    if (el.id === "case-week-count") {
+      updateSchedulePreview();
+      return;
+    }
+    if (el.id === "activity-week-count") {
+      updateActivityEditor(false);
+      return;
+    }
+    if (el.id === "condense-weeks") {
+      updateTimelinePreview();
+      return;
+    }
+    if (el.id === "activity-mandatory" || el.id === "activity-optional") {
+      if (el.checked)
+        modal.querySelector(
+          el.id === "activity-mandatory"
+            ? "#activity-optional"
+            : "#activity-mandatory",
+        ).checked = false;
+      return;
+    }
     if (el.id === "overview-through") {
       if (el.value) M.dateDiff(M.today(), el.value);
       overviewSelectedDate = el.value || null;

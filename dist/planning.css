@@ -1,0 +1,205 @@
+@charset "UTF-8";
+
+.planning-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 17px;
+}
+.planning-template-count {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--secondary);
+}
+.planning-template-count strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+.planning-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.planning-remove-week.button {
+  padding: 4px 5px;
+  font-size: 10px;
+}
+.planning-remove-week svg {
+  width: 12px;
+  height: 12px;
+}
+.planning-week-field {
+  max-width: 220px;
+}
+.planning-summary {
+  border: 1px solid #dbe5d8;
+  border-radius: 9px;
+  background: #f4f7ef;
+  padding: 15px 16px;
+}
+.planning-summary-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.1fr 1.1fr;
+  gap: 12px 16px;
+}
+.planning-summary-grid > div {
+  min-width: 0;
+}
+.planning-summary-grid > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--secondary);
+  font-size: 10px;
+}
+.planning-summary-grid strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.planning-old-date {
+  color: var(--secondary);
+  font-weight: 400;
+}
+.planning-date-arrow {
+  color: #7b8d79;
+}
+.planning-retained {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid #dfe7dc;
+  margin-top: 13px;
+  padding-top: 12px;
+}
+.planning-retained > strong {
+  color: var(--forest);
+  font-size: 11px;
+  margin-right: auto;
+}
+.planning-badge {
+  display: inline-block;
+  border: 1px solid #dce3d9;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--secondary);
+  background: #fff;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.planning-badge--mandatory {
+  border-color: #c7d9cd;
+  color: #345b49;
+  background: #eaf2ec;
+}
+.planning-badge--priority {
+  border-color: #e5d3b8;
+  color: #875e2d;
+  background: #fcf3e5;
+}
+.planning-badge--completed {
+  border-color: #d5ded0;
+  color: #63745a;
+  background: #f2f6ee;
+}
+.planning-note {
+  margin: 11px 0 16px;
+  font-size: 11px;
+  color: var(--secondary);
+  line-height: 1.65;
+}
+.planning-preview {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.planning-preview-week + .planning-preview-week {
+  border-top: 1px solid var(--line);
+}
+.planning-preview-week h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  background: #f8faf5;
+  color: var(--forest);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.planning-preview-week h3 time {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--secondary);
+}
+.planning-preview-week ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.planning-preview-week li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 13px;
+}
+.planning-preview-week li + li {
+  border-top: 1px solid #f0f2ed;
+}
+.planning-task-title {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.planning-task-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  max-width: 50%;
+}
+.planning-empty {
+  padding: 13px;
+  color: var(--secondary);
+  font-size: 11px;
+}
+@media (max-width: 700px) {
+  .planning-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .planning-summary-grid > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .planning-summary {
+    padding: 13px;
+  }
+  .planning-preview-week li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  .planning-task-badges {
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+  .planning-task-badges:empty {
+    display: none;
+  }
+  .planning-retained > strong {
+    flex-basis: 100%;
+    margin-right: 0;
+    margin-bottom: 3px;
+  }
+}
